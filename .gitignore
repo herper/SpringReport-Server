@@ -20,3 +20,4 @@ dist/
 # 忽略Maven项目文件
 maven/
 .mvn/
+.fake
