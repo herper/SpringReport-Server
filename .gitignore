@@ -1,0 +1,22 @@
+# 忽略编译后class文件
+*.class
+# 忽略编译后jar文件
+*.jar
+# 忽略编译后war文件
+*.war
+# 忽略编译后ear文件
+*.ear
+# 忽略Eclipse项目文件
+.project
+.classpath
+# 忽略Eclipse工作
+.settings
+忽略编译生成目录
+target/
+build/
+dist/
+忽略Intellij IDEA项目文件
+.idea/
+# 忽略Maven项目文件
+maven/
+.mvn/
