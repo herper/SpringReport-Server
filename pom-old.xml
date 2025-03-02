@@ -344,37 +344,6 @@
 		    <version>6.2.4</version>
 		</dependency>
 	</dependencies>
-	<!-- 配置仓库地址 -->
-    <repositories>
-        <!-- 官方仓库（优先级最高） -->
-        <repository>
-            <id>central</id>
-            <name>Maven Central</name>
-            <url>https://repo.maven.apache.org/maven2</url>
-            <releases>
-                <enabled>true</enabled>
-                <checksumPolicy>fail</checksumPolicy>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-
-        <!-- GitHub自定义仓库（备用仓库） -->
-        <repository>
-            <id>github-mvn-repo</id>
-            <name>SpringReport Maven Repo</name>
-            <url>https://raw.githubusercontent.com/herper/mvn-repo/main/SpringReport/</url>
-            <layout>default</layout>
-            <releases>
-                <enabled>true</enabled>
-                <updatePolicy>daily</updatePolicy>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-    </repositories>	
 	<build>
 		<resources>
 			<resource>
