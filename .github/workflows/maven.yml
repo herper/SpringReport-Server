@@ -33,9 +33,8 @@ jobs:
       - name: Create Release  # 创建GitHub Release
         id: create_release
         uses: actions/create-release@v1  # 使用GitHub官方的create-release action，用于创建GitHub Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}  # 设置GitHub令牌作为环境变量
         with:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}  # 设置GitHub令牌作为环境变量
           tag_name: Release-${{ github.run_number }}  # 设置Release的标签名称
           release_name: Release ${{ github.run_number }}  # 设置Release的名称
           draft: false  # 是否是草稿状态
