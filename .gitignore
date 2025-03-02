@@ -9,7 +9,7 @@
 .classpath
 # 忽略Eclipse工作
 .settings
-忽略编译生成目录
+# 忽略编译生成目录
 target/
 build/
 dist/
