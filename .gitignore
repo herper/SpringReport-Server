@@ -41,3 +41,5 @@ Desktop.ini
 *.log
 # 忽略临时文件
 *.tmp
+# 忽略.gitignore文件
+.gitignore
