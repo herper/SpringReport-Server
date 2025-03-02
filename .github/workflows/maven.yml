@@ -30,20 +30,14 @@ jobs:
       - name: Build with Maven  # 使用Maven构建项目
         run: mvn package --batch-mode  # 执行mvn package命令进行项目构建
 
-      - name: Create Release Tag
-        id: create_tag
-        run: |
-          TAG_NAME=v2.3.2.${{ github.run_number }}
-          git tag $TAG_NAME
-          git push origin $TAG_NAME
-
-      - name: Publish Release
+      - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: /web/target/SpringReport.jar
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: ${{ steps.create_tag.outputs.TAG_NAME }}
-          release_name: Release ${{ steps.create_tag.outputs.TAG_NAME }}
-          release_notes: |
-            Changes in this Release:
-            - Add SpringReport.jar
+          tag_name: ${{ steps.tag.outputs.TAG_NAME }}
+          files: |
+            /web/target/SpringReport.jar
+            README.md
+          body: |
+            Automated release for tag ${{ steps.tag.outputs.TAG_NAME }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
