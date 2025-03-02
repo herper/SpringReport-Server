@@ -1,7 +1,5 @@
 # 忽略编译后class文件
 *.class
-# 忽略编译后jar文件
-*.jar
 # 忽略编译后war文件
 *.war
 # 忽略编译后ear文件
