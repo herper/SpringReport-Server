@@ -11,24 +11,30 @@ name: Build and Publish Release  # 工作流名称
 on:
   push:
     branches:
-      - main  # 当代码推送到master分支时触发工作流程
+      - main
 
 jobs:
-  build-and-publish:
-    runs-on: ubuntu-latest  # 在最新的Ubuntu操作系统上运行任务
-
+  release:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3  # 使用GitHub官方的checkout action，用于检出代码库
-
-      - name: Set up JDK  # 设置JDK
-        uses: actions/setup-java@master  # 使用GitHub官方的setup-java action，用于安装和配置Java环境
+      - uses: actions/checkout@v4
         with:
-          java-version: 8
-          distribution: "adopt"
-          cache: maven
+          fetch-depth: 0  # 获取完整提交历史
 
-      - name: Build with Maven  # 使用Maven构建项目
-        run: mvn package --batch-mode  # 执行mvn package命令进行项目构建
+      - name: Build
+        run: mvn -B clean package -DskipTests
+
+      - name: Generate Tag
+        id: tag
+        run: |
+          # 基于提交哈希生成唯一标签
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          TAG_NAME="v2.3.2-$SHORT_SHA"
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_OUTPUT
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git tag $TAG_NAME
+          git push origin $TAG_NAME
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
