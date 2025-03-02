@@ -35,18 +35,15 @@ jobs:
         uses: actions/create-release@v1  # 使用GitHub官方的create-release action，用于创建GitHub Release
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 设置GitHub令牌作为环境变量
-          tag_name: Release-${{ github.run_number }}  # 设置Release的标签名称
-          release_name: Release ${{ github.run_number }}  # 设置Release的名称
+          tag_name: SpringReport-v1.0.0-${{ github.run_number }}  # 设置Release的标签名称
+          release_name: SpringReport Release v1.0.${{ github.run_number }}  # 设置Release的名称
           draft: false  # 是否是草稿状态
           prerelease: false  # 是否是预发布状态
-
-      - name: List files  # 列出文件
-        run: ls -R  # 执行ls -R命令，列出工作目录下的文件和子目录
 
       - name: Display directory tree  # 显示目录树
         run: tree  # 执行tree命令，以树状结构显示工作目录的内容
 
-      - name: Release JAR  # 发布JAR文件
+      - name: Upload Release Asset  # 上传Release的附件
         id: upload_jar
         uses: actions/upload-release-asset@v1  # 使用GitHub官方的upload-release-asset action，用于上传Release的附件
         with:
