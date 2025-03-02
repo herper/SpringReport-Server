@@ -3,7 +3,11 @@ package com.springreport.util;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xddf.usermodel.XDDFColor;
@@ -42,6 +46,7 @@ import org.openxmlformats.schemas.drawingml.x2006.main.CTTextBody;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.springreport.enums.YesNoEnum;
 
 /**  
  * @ClassName: ExcelChartUtil
@@ -60,7 +65,7 @@ public class ExcelChartUtil {
 	 * @param chartOptions void
 	 * @date 2024-02-17 09:09:21 
 	 */ 
-	public static void createLineChart(XSSFSheet sheet,JSONObject chartCell,JSONObject chartOptions,boolean smooth,boolean showLabel) {
+	public static void createLineChart(XSSFSheet sheet,JSONObject chartCell,JSONObject chartOptions,boolean smooth,boolean showLabel,int isCoedit) {
 		//创建一个画布
 		XSSFDrawing drawing = sheet.createDrawingPatriarch();
 		int r = chartCell.getIntValue("r");
@@ -78,7 +83,11 @@ public class ExcelChartUtil {
 			//标题覆盖
 			chart.setTitleOverlay(false);
 		}
-		JSONObject chartLegend = getLegend(chartOptions);
+		List<JSONArray> chartData = groupChartData(chartOptions);
+		if(ListUtil.isEmpty(chartData)) {
+			return;
+		}
+		JSONObject chartLegend = getLegend(chartOptions,chartData);
 		boolean show = chartLegend.getBooleanValue("show");
 		if(show)
 		{
@@ -105,14 +114,14 @@ public class ExcelChartUtil {
 				break;
 			}
 		}
-		JSONObject axis = getAxisData(chartOptions,"column");
+		JSONObject axis = getAxisData(chartOptions,"column",chartData);
 //		//分类轴标(X轴),标题位置
 		XDDFCategoryAxis bottomAxis = chart.createCategoryAxis(AxisPosition.BOTTOM);
 		//值(Y轴)轴,标题位置
 		XDDFValueAxis leftAxis = chart.createValueAxis(AxisPosition.LEFT);
 		JSONArray axisData = axis.getJSONArray("data");
 		XDDFCategoryDataSource category = XDDFDataSourcesFactory.fromArray(axisData.toArray(new String[axisData.size()]));
-		List<XDDFNumericalDataSource<Double>> datas = getSeriesArea(sheet, chartOptions, axisData.size());
+		List<XDDFNumericalDataSource<Double>> datas = getSeriesArea(sheet, chartOptions, axisData.size(),isCoedit);
 		if(ListUtil.isNotEmpty(datas))
 		{
 			JSONArray legendData = chartLegend.getJSONArray("data");
@@ -150,7 +159,7 @@ public class ExcelChartUtil {
 	 * @param chartOptions void
 	 * @date 2024-02-18 06:39:43 
 	 */ 
-	public static void createAreaChart(XSSFSheet sheet,JSONObject chartCell,JSONObject chartOptions) {
+	public static void createAreaChart(XSSFSheet sheet,JSONObject chartCell,JSONObject chartOptions,int isCoedit) {
 		//创建一个画布
 		XSSFDrawing drawing = sheet.createDrawingPatriarch();
 		int r = chartCell.getIntValue("r");
@@ -168,7 +177,8 @@ public class ExcelChartUtil {
 			//标题覆盖
 			chart.setTitleOverlay(false);
 		}
-		JSONObject chartLegend = getLegend(chartOptions);
+		List<JSONArray> chartData = groupChartData(chartOptions);
+		JSONObject chartLegend = getLegend(chartOptions,chartData);
 		boolean show = chartLegend.getBooleanValue("show");
 		if(show)
 		{
@@ -195,14 +205,14 @@ public class ExcelChartUtil {
 				break;
 			}
 		}
-		JSONObject axis = getAxisData(chartOptions,"column");
+		JSONObject axis = getAxisData(chartOptions,"column",chartData);
 		//分类轴标(X轴),标题位置
 		XDDFCategoryAxis bottomAxis = chart.createCategoryAxis(AxisPosition.BOTTOM);
 		//值(Y轴)轴,标题位置
 		XDDFValueAxis leftAxis = chart.createValueAxis(AxisPosition.LEFT);
 		JSONArray axisData = axis.getJSONArray("data");
 		XDDFCategoryDataSource category = XDDFDataSourcesFactory.fromArray(axisData.toArray(new String[axisData.size()]));
-		List<XDDFNumericalDataSource<Double>> datas = getSeriesArea(sheet, chartOptions, axisData.size());
+		List<XDDFNumericalDataSource<Double>> datas = getSeriesArea(sheet, chartOptions, axisData.size(),isCoedit);
 		if(ListUtil.isNotEmpty(datas))
 		{
 			JSONArray legendData = chartLegend.getJSONArray("data");
@@ -227,7 +237,7 @@ public class ExcelChartUtil {
      * @param chartPosition
      * @param pieChart
      */
-    public static void createBar(XSSFSheet sheet,JSONObject chartCell,JSONObject chartOptions,String type,boolean stacked){
+    public static void createBar(XSSFSheet sheet,JSONObject chartCell,JSONObject chartOptions,String type,boolean stacked,int isCoedit){
 		//创建一个画布
 		XSSFDrawing drawing = sheet.createDrawingPatriarch();
 		int r = chartCell.getIntValue("r");
@@ -245,7 +255,11 @@ public class ExcelChartUtil {
 			//标题覆盖
 			chart.setTitleOverlay(false);
 		}
-		JSONObject chartLegend = getLegend(chartOptions);
+		List<JSONArray> chartData = groupChartData(chartOptions);
+		if(ListUtil.isEmpty(chartData)) {
+			return;
+		}
+		JSONObject chartLegend = getLegend(chartOptions,chartData);
 		boolean show = chartLegend.getBooleanValue("show");
 		if(show)
 		{
@@ -272,7 +286,7 @@ public class ExcelChartUtil {
 				break;
 			}
 		}
-		JSONObject axis = getAxisData(chartOptions,type);
+		JSONObject axis = getAxisData(chartOptions,type,chartData);
 //		//分类轴标(X轴),标题位置
 		XDDFCategoryAxis bottomAxis = chart.createCategoryAxis(AxisPosition.BOTTOM);
 		//值(Y轴)轴,标题位置
@@ -280,7 +294,7 @@ public class ExcelChartUtil {
 		leftAxis.setCrossBetween(AxisCrossBetween.BETWEEN);
 		JSONArray axisData = axis.getJSONArray("data");
 		XDDFCategoryDataSource category = XDDFDataSourcesFactory.fromArray(axisData.toArray(new String[axisData.size()]));
-		List<XDDFNumericalDataSource<Double>> datas = getSeriesArea(sheet, chartOptions, axisData.size());
+		List<XDDFNumericalDataSource<Double>> datas = getSeriesArea(sheet, chartOptions, axisData.size(),isCoedit);
 		if(ListUtil.isNotEmpty(datas))
 		{
 			JSONArray legendData = chartLegend.getJSONArray("data");
@@ -327,7 +341,7 @@ public class ExcelChartUtil {
      * @param type void
      * @date 2024-02-19 07:47:32 
      */ 
-    public static void createPie(XSSFSheet sheet,JSONObject chartCell,JSONObject chartOptions){
+    public static void createPie(XSSFSheet sheet,JSONObject chartCell,JSONObject chartOptions,int isCoedit){
     	//创建一个画布
     	XSSFDrawing drawing = sheet.createDrawingPatriarch();
 		int r = chartCell.getIntValue("r");
@@ -345,7 +359,11 @@ public class ExcelChartUtil {
 			//标题覆盖
 			chart.setTitleOverlay(false);
 		}
-		JSONObject chartLegend = getLegend(chartOptions);
+		List<JSONArray> chartData = groupChartData(chartOptions);
+		if(ListUtil.isEmpty(chartData)) {
+			return;
+		}
+		JSONObject chartLegend = getLegend(chartOptions,chartData);
 		boolean show = chartLegend.getBooleanValue("show");
 		if(show)
 		{
@@ -372,14 +390,13 @@ public class ExcelChartUtil {
 				break;
 			}
 		}
-		JSONObject pieSeries = getPieSeries(chartOptions);
-		JSONArray names = pieSeries.getJSONArray("data");
+		boolean rangeConfigCheck = chartOptions.getBooleanValue("rangeConfigCheck");
+		JSONArray names = getAxesData(chartData,rangeConfigCheck);
 		XDDFCategoryDataSource category = XDDFDataSourcesFactory.fromArray(names.toArray(new String[names.size()]));
-		List<XDDFNumericalDataSource<Double>> datas = getSeriesArea(sheet, chartOptions, names.size());
+		List<XDDFNumericalDataSource<Double>> datas = getSeriesArea(sheet, chartOptions, names.size(),isCoedit);
 		if(ListUtil.isNotEmpty(datas)) {
 			XDDFPieChartData data = (XDDFPieChartData)chart.createData(ChartTypes.PIE, null, null);
 			XDDFPieChartData.Series series = (XDDFPieChartData.Series)data.addSeries(category, datas.get(0));
-			series.setTitle(pieSeries.getString("name"), null);
 			chart.plot(data);
 			CTDLbls dLbls = chart.getCTChart().getPlotArea().getPieChartArray(0).getSerArray(0).addNewDLbls();
 	        dLbls.addNewShowVal().setVal(false);
@@ -401,7 +418,7 @@ public class ExcelChartUtil {
      * @param chartOptions void
      * @date 2024-02-20 04:42:34 
      */ 
-    public static void createDoughnut(XSSFSheet sheet,JSONObject chartCell,JSONObject chartOptions){
+    public static void createDoughnut(XSSFSheet sheet,JSONObject chartCell,JSONObject chartOptions,int isCoedit){
     	//创建一个画布
     	XSSFDrawing drawing = sheet.createDrawingPatriarch();
 		int r = chartCell.getIntValue("r");
@@ -419,7 +436,11 @@ public class ExcelChartUtil {
 			//标题覆盖
 			chart.setTitleOverlay(false);
 		}
-		JSONObject chartLegend = getLegend(chartOptions);
+		List<JSONArray> chartData = groupChartData(chartOptions);
+		if(ListUtil.isEmpty(chartData)) {
+			return;
+		}
+		JSONObject chartLegend = getLegend(chartOptions,chartData);
 		boolean show = chartLegend.getBooleanValue("show");
 		if(show)
 		{
@@ -446,14 +467,13 @@ public class ExcelChartUtil {
 				break;
 			}
 		}
-		JSONObject pieSeries = getPieSeries(chartOptions);
-		JSONArray names = pieSeries.getJSONArray("data");
+		boolean rangeConfigCheck = chartOptions.getBooleanValue("rangeConfigCheck");
+		JSONArray names = getAxesData(chartData,rangeConfigCheck);
 		XDDFCategoryDataSource category = XDDFDataSourcesFactory.fromArray(names.toArray(new String[names.size()]));
-		List<XDDFNumericalDataSource<Double>> datas = getSeriesArea(sheet, chartOptions, names.size());
+		List<XDDFNumericalDataSource<Double>> datas = getSeriesArea(sheet, chartOptions, names.size(),isCoedit);
 		if(ListUtil.isNotEmpty(datas)) {
 			XDDFDoughnutChartData data = (XDDFDoughnutChartData)chart.createData(ChartTypes.DOUGHNUT, null, null);
 			XDDFDoughnutChartData.Series series = (XDDFDoughnutChartData.Series)data.addSeries(category, datas.get(0));
-			series.setTitle(pieSeries.getString("name"), null);
 			chart.plot(data);
 			CTDLbls dLbls = chart.getCTChart().getPlotArea().getDoughnutChartArray(0).getSerArray(0).addNewDLbls();
 	        dLbls.addNewShowVal().setVal(false);
@@ -477,7 +497,7 @@ public class ExcelChartUtil {
      * @param chartOptions void
      * @date 2024-02-20 06:57:24 
      */ 
-    public static void createRadar(XSSFSheet sheet,JSONObject chartCell,JSONObject chartOptions){
+    public static void createRadar(XSSFSheet sheet,JSONObject chartCell,JSONObject chartOptions,int isCoedit){
     	//创建一个画布
     	XSSFDrawing drawing = sheet.createDrawingPatriarch();
 		int r = chartCell.getIntValue("r");
@@ -495,7 +515,11 @@ public class ExcelChartUtil {
 			//标题覆盖
 			chart.setTitleOverlay(false);
 		}
-		JSONObject chartLegend = getLegend(chartOptions);
+		List<JSONArray> chartData = groupChartData(chartOptions);
+		if(ListUtil.isEmpty(chartData)) {
+			return;
+		}
+		JSONObject chartLegend = getLegend(chartOptions,chartData);
 		boolean show = chartLegend.getBooleanValue("show");
 		if(show)
 		{
@@ -526,11 +550,12 @@ public class ExcelChartUtil {
 		XDDFCategoryAxis bottomAxis = chart.createCategoryAxis(AxisPosition.BOTTOM);
 		//值(Y轴)轴,标题位置
 		XDDFValueAxis leftAxis = chart.createValueAxis(AxisPosition.LEFT);
-		JSONArray indicator = getIndicator(chartOptions);
-		JSONObject pieSeries = getPieSeries(chartOptions);
+		boolean rangeConfigCheck = chartOptions.getBooleanValue("rangeConfigCheck");
+		JSONArray indicator = getAxesData(chartData,rangeConfigCheck);
+		JSONObject pieSeries = getLegend(chartOptions, chartData);
 		JSONArray names = pieSeries.getJSONArray("data");
 		XDDFCategoryDataSource category = XDDFDataSourcesFactory.fromArray(indicator.toArray(new String[indicator.size()]));
-		List<XDDFNumericalDataSource<Double>> datas = getSeriesArea(sheet, chartOptions, indicator.size());
+		List<XDDFNumericalDataSource<Double>> datas = getSeriesArea(sheet, chartOptions, indicator.size(),isCoedit);
 		if(ListUtil.isNotEmpty(datas)) {
 			// 网格线
 			XDDFShapeProperties yGridProperties = leftAxis.getOrAddMajorGridProperties();
@@ -546,7 +571,7 @@ public class ExcelChartUtil {
 				{
 					series.setTitle(names.getString(i), null);
 				}else {
-					series.setTitle("系列"+i, null);
+					series.setTitle("系列"+(i+1), null);
 				}
 			}
 			chart.plot(data);
@@ -569,22 +594,44 @@ public class ExcelChartUtil {
      * @return String
      * @date 2024-02-17 06:14:24 
      */ 
-    private static String getTitle(JSONObject chartOptions) {
+    public static String getTitle(JSONObject chartOptions) {
     	String result = "";
 		JSONObject defaultOption = chartOptions.getJSONObject("defaultOption");
 		if(defaultOption != null)
 		{
-			JSONObject title = defaultOption.getJSONObject("title");
-			if(title != null)
-			{
-				boolean show = title.getBooleanValue("show");
-				if(show) {
-					result = title.getString("text");
+			JSONObject spec = defaultOption.getJSONObject("spec");
+			if(spec != null) {
+				JSONObject title = spec.getJSONObject("title");
+				if(title != null)
+				{
+					boolean show = title.getBooleanValue("visible");
+					if(show) {
+						result = title.getString("text");
+					}
 				}
 			}
+			
 		}
 		return result;
 	}
+    
+    public static boolean getTitleShow(JSONObject chartOptions) {
+    	boolean result = false;
+    	JSONObject defaultOption = chartOptions.getJSONObject("defaultOption");
+		if(defaultOption != null)
+		{
+			JSONObject spec = defaultOption.getJSONObject("spec");
+			if(spec != null) {
+				JSONObject title = spec.getJSONObject("title");
+				if(title != null)
+				{
+					result = title.getBooleanValue("visible");
+				}
+			}
+			
+		}
+    	return result;
+    }
     
     /**  
      * @MethodName: getLegend
@@ -594,58 +641,26 @@ public class ExcelChartUtil {
      * @return JSONObject
      * @date 2024-02-17 06:32:58 
      */ 
-    private static JSONObject getLegend(JSONObject chartOptions)
+    public static JSONObject getLegend(JSONObject chartOptions,List<JSONArray> chartDatas)
     {
     	JSONObject result = new JSONObject();
     	result.put("show", false);
     	JSONObject defaultOption = chartOptions.getJSONObject("defaultOption");
+    	boolean rangeConfigCheck = chartOptions.getBooleanValue("rangeConfigCheck");
 		if(defaultOption != null)
 		{
-			JSONObject legend = defaultOption.getJSONObject("legend");
-			if(legend != null)
-			{
-				boolean show = legend.getBooleanValue("show");
-				result.put("show", show);
-				JSONArray legendData = legend.getJSONArray("data");
-				result.put("data", legendData);
-				JSONObject position = legend.getJSONObject("position");
-				if(position != null)
+			JSONObject spec = defaultOption.getJSONObject("spec");
+			if(spec != null) {
+				JSONObject legend = spec.getJSONObject("legends");
+				if(legend != null)
 				{
-					String positionValue = position.getString("value");
-					switch (positionValue) {
-					case "left-top":
-						positionValue = "top";
-						break;
-					case "left-middle":
-						positionValue = "left";
-						break;
-					case "left-bottom":
-						positionValue = "left";
-						break;
-					case "right-top":
-						positionValue = "right-top";
-						break;
-					case "right-middle":
-						positionValue = "right";
-						break;
-					case "right-bottom":
-						positionValue = "right";
-						break;
-					case "center-top":
-						positionValue = "top";
-						break;
-					case "center-middle":
-						positionValue = "bottom";
-						break;
-					case "center-bottom":
-						positionValue = "bottom";
-						break;
-					default:
-						positionValue = "bottom";
-						break;
-					}
+					boolean show = legend.getBooleanValue("visible");
+					result.put("show", show);
+					JSONArray legendData = getLegendData(chartDatas,rangeConfigCheck);
+					result.put("data", legendData);
+					String positionValue = legend.getString("position");
 					result.put("position", positionValue);
-					String direction = position.getString("direction");
+					String direction = legend.getString("orient");
 					result.put("direction", direction);
 				}
 			}
@@ -653,64 +668,21 @@ public class ExcelChartUtil {
 		return result;
     }
     
-    private static JSONObject getPieSeries(JSONObject chartOptions) {
+    public static JSONObject getAxisData(JSONObject chartOptions,String type,List<JSONArray> chartData){
     	JSONObject result = new JSONObject();
-    	JSONArray dataNames = new JSONArray();
-    	JSONObject defaultOption = chartOptions.getJSONObject("defaultOption");
-    	String seriesName = "";
-    	if(defaultOption != null) {
-    		JSONArray series = defaultOption.getJSONArray("series");
-        	if(ListUtil.isNotEmpty(series))
-        	{
-        		JSONObject seriesObj = series.getJSONObject(0);
-        		JSONArray data = seriesObj.getJSONArray("data");
-        		seriesName = seriesObj.getString("name");
-        		if(ListUtil.isNotEmpty(data))
-        		{
-        			for (int i = 0; i < data.size(); i++) {
-    					String name = data.getJSONObject(i).getString("name");
-    					dataNames.add(name);
-    				}
-        		}
-        	}
-    	}
-    	result.put("data", dataNames);
-    	result.put("name", seriesName);
-    	return result;
-    }
-    
-    private static JSONObject getAxisData(JSONObject chartOptions,String type){
-    	JSONObject result = new JSONObject();
-    	result.put("show", false);
-    	JSONObject defaultOption = chartOptions.getJSONObject("defaultOption");
-		if(defaultOption != null)
-		{
-			JSONObject axis = defaultOption.getJSONObject("axis");
-			if(axis != null)
-			{
-				JSONObject xAxisDown = null;
-				if("column".equals(type))
-				{
-					xAxisDown = axis.getJSONObject("xAxisDown");
-				}else {
-					xAxisDown = axis.getJSONObject("yAxisLeft");
-				}
-				if(xAxisDown != null)
-				{
-					boolean show = xAxisDown.getBooleanValue("show");
-					JSONArray data = xAxisDown.getJSONArray("data");
-					result.put("show", show);
-					result.put("data", data);
-				}
-			}
-		}
+    	result.put("show", true);
+    	boolean rangeConfigCheck = chartOptions.getBooleanValue("rangeConfigCheck");
+    	JSONArray data = getAxesData(chartData,rangeConfigCheck);
+    	result.put("data", data);
 		return result;
     }
     
-    private static List<XDDFNumericalDataSource<Double>> getSeriesArea(XSSFSheet sheet,JSONObject chartOptions,int axisDataSize){
+    private static List<XDDFNumericalDataSource<Double>> getSeriesArea(XSSFSheet sheet,JSONObject chartOptions,int axisDataSize,int isCoedit){
     	List<XDDFNumericalDataSource<Double>> result = new ArrayList<>();
     	JSONArray rangeArray = chartOptions.getJSONArray("rangeArray");
     	boolean rangeConfigCheck = chartOptions.getBooleanValue("rangeConfigCheck");// transpose(switch row/column)
+    	JSONObject rangeSplitArray = chartOptions.getJSONObject("rangeSplitArray");
+    	String type = rangeSplitArray.getString("type");
     	if(ListUtil.isNotEmpty(rangeArray))
     	{
     		JSONObject rangeObj = rangeArray.getJSONObject(0);
@@ -722,52 +694,78 @@ public class ExcelChartUtil {
     			int edr = row.getIntValue(1);
     			int stc = column.getIntValue(0);
     			int edc = column.getIntValue(1);
-    			if(axisDataSize < (edc-stc+1))
-    			{
-    				edc = stc+axisDataSize-1;
+    			if(YesNoEnum.YES.getCode().intValue() == 1) {
+    				if("normal".equals(type)) {
+    					str = str + 1;
+    					stc = stc + 1;
+    				}else if("leftright".equals(type)) {
+    					stc = stc + 1;
+    				}else if("topbottom".equals(type)) {
+    					str = str + 1;
+    				}
     			}
-    			XDDFNumericalDataSource<Double> area = null;
-    			for (int i = str; i <= edr; i++) {
-    				area = XDDFDataSourcesFactory.fromNumericCellRange(sheet, new CellRangeAddress(i, i, stc, edc));
-    				result.add(area);
-				}
+    			if(axisDataSize != 0 && (edc-stc+1)%axisDataSize==0) {
+    				int multiple = (edc-stc+1)/axisDataSize;
+    				XDDFNumericalDataSource<Double> area = null;
+    				for (int t = 1; t <= multiple; t++) {
+    					edc = axisDataSize + stc - 1;
+    					for (int i = str; i <= edr; i++) {
+            				area = XDDFDataSourcesFactory.fromNumericCellRange(sheet, new CellRangeAddress(i, i, stc, edc));
+            				result.add(area);
+        				}
+    					stc = edc;
+					}
+    			}else {
+    				if(axisDataSize < (edc-stc+1))
+        			{
+        				edc = stc+axisDataSize-1;
+        			}
+        			XDDFNumericalDataSource<Double> area = null;
+        			for (int i = str; i <= edr; i++) {
+        				area = XDDFDataSourcesFactory.fromNumericCellRange(sheet, new CellRangeAddress(i, i, stc, edc));
+        				result.add(area);
+    				}
+    			}
     		}else {
     			int str = row.getIntValue(0);
     			int edr = row.getIntValue(1);
     			int stc = column.getIntValue(0);
     			int edc = column.getIntValue(1);
-    			if(axisDataSize < (edr-str+1))
-    			{
-    				edr = str+axisDataSize-1;
+    			if(YesNoEnum.YES.getCode().intValue() == 1) {
+    				if("normal".equals(type)) {
+    					str = str + 1;
+    					stc = stc + 1;
+    				}else if("leftright".equals(type)) {
+    					stc = stc + 1;
+    				}else if("topbottom".equals(type)) {
+    					str = str + 1;
+    				}
     			}
-    			XDDFNumericalDataSource<Double> area = null;
-    			for (int i = stc; i <= edc; i++) {
-    				area = XDDFDataSourcesFactory.fromNumericCellRange(sheet, new CellRangeAddress(str, edr, i, i));
-    				result.add(area);
-				}
+    			if(axisDataSize != 0 && (edr-str+1)%axisDataSize==0) {
+    				int multiple = (edr-str+1)/axisDataSize;
+    				XDDFNumericalDataSource<Double> area = null;
+    				for (int t = 1; t <= multiple; t++) {
+    					edr = str+axisDataSize-1;
+            			for (int i = stc; i <= edc; i++) {
+            				area = XDDFDataSourcesFactory.fromNumericCellRange(sheet, new CellRangeAddress(str, edr, i, i));
+            				result.add(area);
+        				}
+            			str = edr+1;
+    				}
+    			}else {
+    				if(axisDataSize < (edr-str+1))
+        			{
+        				edr = str+axisDataSize-1;
+        			}
+    				XDDFNumericalDataSource<Double> area = null;
+        			for (int i = stc; i <= edc; i++) {
+        				area = XDDFDataSourcesFactory.fromNumericCellRange(sheet, new CellRangeAddress(str, edr, i, i));
+        				result.add(area);
+    				}
+    			}
     		}
     	}
     	return result;
-    }
-    
-    private static JSONArray getIndicator(JSONObject chartOptions) {
-    	JSONArray result = new JSONArray();
-    	JSONObject defaultOption = chartOptions.getJSONObject("defaultOption");
-		if(defaultOption != null)
-		{
-			JSONObject radar = defaultOption.getJSONObject("radar");
-			if(radar != null) {
-				JSONArray indicator = radar.getJSONArray("indicator");
-				if(ListUtil.isNotEmpty(indicator))
-				{
-					for (int i = 0; i < indicator.size(); i++) {
-						String name = indicator.getJSONObject(i).getString("name");
-						result.add(name);
-					}
-				}
-			}
-		}
-		return result;
     }
     
     /**
@@ -789,5 +787,78 @@ public class ExcelChartUtil {
             txPr.addNewBodyPr();
             txPr.addNewP().addNewPPr().addNewDefRPr();
         }
+    }
+    
+    public static List<JSONArray> groupChartData(JSONObject chartOptions) {
+    	List<JSONArray> result = new ArrayList<>();
+    	if(chartOptions.getJSONObject("defaultOption") == null || chartOptions.getJSONObject("defaultOption").getJSONObject("spec") == null) {
+    		return result;
+    	}
+    	JSONArray values = chartOptions.getJSONObject("defaultOption").getJSONObject("spec").getJSONObject("data").getJSONArray("values");
+    	boolean rangeConfigCheck = chartOptions.getBooleanValue("rangeConfigCheck");
+    	if(ListUtil.isNotEmpty(values)) {
+    		Map<String, JSONArray> dataMap = new LinkedHashMap<>();
+    		for (int i = 0; i < values.size(); i++) {
+    			JSONArray rowList = null;
+				JSONObject data = values.getJSONObject(i);
+				String key = "";
+				if(rangeConfigCheck) {
+					key = data.getString("seriesField");
+				}else {
+					key = data.getString("type");
+				}
+				if(dataMap.containsKey(key)) {
+					rowList = dataMap.get(key);
+				}else {
+					rowList = new JSONArray();
+					dataMap.put(key, rowList);
+				}
+				rowList.add(data);
+			}
+    		Iterator<Entry<String, JSONArray>> entries = dataMap.entrySet().iterator();
+    		while(entries.hasNext()){
+    			result.add(entries.next().getValue());
+			}
+    	}
+    	return result;
+    }
+    
+    private static JSONArray getLegendData(List<JSONArray> chartData,boolean rangeConfigCheck) {
+    	JSONArray result = new JSONArray();
+    	if(rangeConfigCheck) {
+    		if(ListUtil.isNotEmpty(chartData)) {
+        		for (int i = 0; i < chartData.size(); i++) {
+        			result.add(chartData.get(i).getJSONObject(0).getString("seriesField"));
+    			}
+        	}
+    	}else {
+    		if(ListUtil.isNotEmpty(chartData)) {
+        		JSONArray datas = chartData.get(0);
+        		for (int i = 0; i < datas.size(); i++) {
+        			result.add(datas.getJSONObject(i).getString("seriesField"));
+    			}
+        	}
+    	}
+    	
+    	return result;
+    }
+    
+    public static JSONArray getAxesData(List<JSONArray> chartData,boolean rangeConfigCheck) {
+    	JSONArray result = new JSONArray();
+    	if(rangeConfigCheck) {
+    		if(ListUtil.isNotEmpty(chartData)) {
+        		JSONArray datas = chartData.get(0);
+        		for (int i = 0; i < datas.size(); i++) {
+        			result.add(datas.getJSONObject(i).getString("type"));
+    			}
+        	}
+    	}else {
+    		if(ListUtil.isNotEmpty(chartData)) {
+        		for (int i = 0; i < chartData.size(); i++) {
+        			result.add(chartData.get(i).getJSONObject(0).getString("type"));
+    			}
+        	}
+    	}
+    	return result;
     }
 }

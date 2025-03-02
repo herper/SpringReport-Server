@@ -13,6 +13,7 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.springreport.entity.reporttpl.ReportTpl;
+import com.springreport.entity.reporttype.ReportType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
@@ -26,6 +27,7 @@ import com.springreport.dto.reporttpl.MesLuckySheetTplDto;
 import com.springreport.dto.reporttpl.MesLuckysheetsTplDto;
 import com.springreport.dto.reporttpl.MobilePreviewDto;
 import com.springreport.dto.reporttpl.ReportTplDto;
+import com.springreport.dto.reporttpl.ReportTplTreeDto;
 import com.springreport.dto.reporttpl.ResLuckySheetDataDto;
 import com.springreport.dto.reporttpl.ResLuckySheetTplSettingsDto;
 import com.springreport.dto.reporttpl.ResPreviewData;
@@ -50,6 +52,8 @@ public interface IReportTplService extends IService<ReportTpl> {
 	* @throws 
 	*/ 
 	PageEntity tablePagingQuery(ReportTpl model);
+	
+	List<ReportTplTreeDto> getChildren(ReportTpl model);
 
 	/**
 	*<p>Title: getDetail</p>
@@ -182,7 +186,7 @@ public interface IReportTplService extends IService<ReportTpl> {
 	 * @return PageEntity
 	 * @date 2022-07-06 08:28:50 
 	 */  
-	PageEntity getRoleReports(MesRoleReportDto model);
+	List<ReportTplTreeDto> getRoleReports(MesRoleReportDto model);
 	
 	/**  
 	 * @MethodName: saveReportFormsTpl
@@ -304,7 +308,7 @@ public interface IReportTplService extends IService<ReportTpl> {
 	 * @throws Exception JSONArray
 	 * @date 2023-12-13 10:23:27 
 	 */ 
-	JSONArray uploadReportTpl(MultipartFile file,long tplId,UserInfoDto userInfoDto) throws Exception;
+	JSONArray uploadReportTpl(MultipartFile file,long tplId,int isFormsReport,UserInfoDto userInfoDto) throws Exception;
 	
 	/**  
 	 * @Title: getTplDatasetsColumnNames
@@ -315,7 +319,7 @@ public interface IReportTplService extends IService<ReportTpl> {
 	 * @throws SQLException 
 	 * @date 2021-05-25 07:01:49 
 	 */ 
-	List<List<String>> getTplDatasetsColumnNames(Long tplId,Map<String, String> datasetNameIdMap) throws SQLException;
+	List<List<String>> getTplDatasetsColumnNames(Long tplId,Map<String, String> datasetNameIdMap,UserInfoDto userInfoDto) throws SQLException;
 
 	/**  
 	 * @MethodName: getAllTpls

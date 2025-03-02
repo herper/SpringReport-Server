@@ -32,23 +32,25 @@ import com.springreport.dto.reporttpl.MesLuckysheetsTplDto;
 import com.springreport.dto.reporttpl.MobilePreviewDto;
 import com.springreport.dto.reporttpl.ReportDataDto;
 import com.springreport.dto.reporttpl.ReportTplDto;
+import com.springreport.dto.reporttpl.ReportTplTreeDto;
 import com.springreport.dto.reporttpl.ResPreviewData;
 import com.springreport.dto.reporttpl.ResSheetsSettingsDto;
 import com.springreport.dto.reporttpl.ShareDto;
 import com.springreport.dto.sysrolereport.MesRoleReportDto;
 import com.springreport.entity.reporttpl.ReportTpl;
+import com.springreport.entity.reporttype.ReportType;
 import com.springreport.entity.sysuser.SysUser;
 import com.springreport.entity.sysuserrole.SysUserRole;
 import com.springreport.enums.DelFlagEnum;
 import com.springreport.enums.RedisPrefixEnum;
 import com.springreport.enums.YesNoEnum;
 import com.springreport.exception.BizException;
-import com.springreport.util.JsonUtil;
 import com.springreport.util.MessageUtil;
 import com.springreport.util.Pako_GzipUtils;
 import com.springreport.util.RedisUtil;
 import com.springreport.util.StringUtil;
 
+import cn.hutool.json.JSONUtil;
 import net.sf.jsqlparser.JSQLParserException;
 
 import com.alibaba.fastjson.JSONArray;
@@ -99,11 +101,19 @@ public class ReportTplController extends BaseController {
 	*/ 
 	@RequestMapping(value = "/getTableList",method = RequestMethod.POST)
 	@MethodLog(module="ReportTpl",remark="获取页面表格数据",operateType=Constants.OPERATE_TYPE_SEARCH)
-	@RequiresPermissions(value = {"reportTpl_search"})
+	@RequiresPermissions(value = {"reportTpl_search","viewReport_Search"})
 	public Response getTableList(@RequestBody ReportTpl model)
 	{
-		BaseEntity result = new BaseEntity();
-		result = iReportTplService.tablePagingQuery(model);
+		PageEntity result = iReportTplService.tablePagingQuery(model);
+		return Response.success(result);
+	}
+	
+	@RequestMapping(value = "/getChildren",method = RequestMethod.POST)
+	@MethodLog(module="ReportTpl",remark="获取页面表格数据",operateType=Constants.OPERATE_TYPE_SEARCH)
+	@RequiresPermissions(value = {"reportTpl_search"})
+	public Response getChildren(@RequestBody ReportTpl model)
+	{
+		List<ReportTplTreeDto> result = iReportTplService.getChildren(model);
 		return Response.success(result);
 	}
 
@@ -292,7 +302,7 @@ public class ReportTplController extends BaseController {
 		Response response = new Response();
 		response.setCode("200");
 		response.setResponseData(result);
-		resultStr=JsonUtil.toJson(response);
+		resultStr=JSONUtil.toJsonStr(response);
 		try {
 	         byte dest[]= Pako_GzipUtils.compress2(resultStr);
 	         OutputStream out=httpServletResponse.getOutputStream();
@@ -317,7 +327,7 @@ public class ReportTplController extends BaseController {
 	@RequestMapping(value = "/previewShareLuckysheetReportData",method = RequestMethod.POST)
 	@MethodLog(module="ReportTpl",remark="分享预览luckysheet报表",operateType=Constants.OPERATE_TYPE_SEARCH)
 	@Check({"tplId:required#模板"})
-	public Response previewShareLuckysheetReportData(@RequestBody MesGenerateReportDto mesGenerateReportDto) throws Exception
+	public String previewShareLuckysheetReportData(@RequestBody MesGenerateReportDto mesGenerateReportDto) throws Exception
 	{
 		String shareCode = this.httpServletRequest.getHeader("shareCode");
 		String shareUser = this.httpServletRequest.getHeader("shareUser");
@@ -330,14 +340,23 @@ public class ReportTplController extends BaseController {
 		{
 			throw new BizException(StatusCode.FAILURE, MessageUtil.getValue("error.share.time"));
 		}
-		SysUser sysUser = iSysUserService.getById(shareUser);
-		if(sysUser == null)
-		{
-			throw new BizException(StatusCode.FAILURE, MessageUtil.getValue("error.share.param"));
-		}
+		String thirdPartyType = MessageUtil.getValue("thirdParty.type");
 		UserInfoDto userInfoDto = new UserInfoDto();
-		userInfoDto.setUserId(sysUser.getId());
-		userInfoDto.setIsAdmin(sysUser.getIsAdmin());
+		SysUser sysUser = null;
+		if(thirdPartyType.equals(shareUser)) {
+			sysUser = new SysUser();
+			sysUser.setIsAdmin(YesNoEnum.YES.getCode());
+			userInfoDto.setIsAdmin(YesNoEnum.YES.getCode());
+		}else {
+			sysUser = iSysUserService.getById(shareUser);
+			if(sysUser == null)
+			{
+				throw new BizException(StatusCode.FAILURE, MessageUtil.getValue("error.share.param"));
+			}
+			userInfoDto.setUserId(sysUser.getId());
+			userInfoDto.setIsAdmin(sysUser.getIsAdmin());
+		}
+		
 		if(YesNoEnum.YES.getCode().intValue() != sysUser.getIsAdmin().intValue())
 		{
 			QueryWrapper<SysUserRole> queryWrapper = new QueryWrapper<>();
@@ -350,7 +369,23 @@ public class ReportTplController extends BaseController {
 			}
 		}
 		ResPreviewData result = this.iReportTplService.previewLuckysheetReportData(mesGenerateReportDto,userInfoDto);
-		return Response.success(result);
+		httpServletResponse.setHeader("Content-Encoding", "gzip");
+		httpServletResponse.setContentType("text/html");
+		String resultStr="";
+		Response response = new Response();
+		response.setCode("200");
+		response.setResponseData(result);
+		resultStr=JSONUtil.toJsonStr(response);
+		try {
+	         byte dest[]= Pako_GzipUtils.compress2(resultStr);
+	         OutputStream out=httpServletResponse.getOutputStream();
+	         out.write(dest);
+	         out.close();
+	         out.flush();
+	     } catch (Exception e) {
+	        e.printStackTrace();
+	     }
+		return null;
 	}
 	
 	/**  
@@ -462,7 +497,7 @@ public class ReportTplController extends BaseController {
 	{
 		model.setIsAdmin(userInfoDto.getIsAdmin());
 		model.setRoleId(userInfoDto.getRoleId());
-		PageEntity result = this.iReportTplService.getRoleReports(model);
+		List<ReportTplTreeDto> result = this.iReportTplService.getRoleReports(model);
 		return Response.success(result);
 	}
 	
@@ -804,14 +839,22 @@ public class ReportTplController extends BaseController {
 		{
 			throw new BizException(StatusCode.FAILURE, MessageUtil.getValue("error.share.time"));
 		}
-		SysUser sysUser = iSysUserService.getById(shareUser);
-		if(sysUser == null)
-		{
-			throw new BizException(StatusCode.FAILURE, MessageUtil.getValue("error.share.param"));
-		}
+		String thirdPartyType = MessageUtil.getValue("thirdParty.type");
 		UserInfoDto userInfoDto = new UserInfoDto();
-		userInfoDto.setUserId(sysUser.getId());
-		userInfoDto.setIsAdmin(sysUser.getIsAdmin());
+		SysUser sysUser = null;
+		if(thirdPartyType.equals(shareUser)) {
+			sysUser = new SysUser();
+			sysUser.setIsAdmin(YesNoEnum.YES.getCode());
+			userInfoDto.setIsAdmin(YesNoEnum.YES.getCode());
+		}else {
+			sysUser = iSysUserService.getById(shareUser);
+			if(sysUser == null)
+			{
+				throw new BizException(StatusCode.FAILURE, MessageUtil.getValue("error.share.param"));
+			}
+			userInfoDto.setUserId(sysUser.getId());
+			userInfoDto.setIsAdmin(sysUser.getIsAdmin());
+		}
 		if(YesNoEnum.YES.getCode().intValue() != sysUser.getIsAdmin().intValue())
 		{
 			QueryWrapper<SysUserRole> queryWrapper = new QueryWrapper<>();
@@ -898,15 +941,15 @@ public class ReportTplController extends BaseController {
 	 * @date 2023-12-13 10:10:35 
 	 */ 
 	@RequestMapping("/uploadReportTpl")
-	public String uploadReportTpl(@RequestParam("file") MultipartFile file,@RequestParam("tplId") long tplId,@LoginUser UserInfoDto userInfoDto) throws Exception  {
+	public String uploadReportTpl(@RequestParam("file") MultipartFile file,@RequestParam("tplId") long tplId,@RequestParam("isFormsReport") int isFormsReport,@LoginUser UserInfoDto userInfoDto) throws Exception  {
 		httpServletResponse.setHeader("Content-Encoding", "gzip");
 		httpServletResponse.setContentType("text/html");
 		String resultStr="";
-		JSONArray result = this.iReportTplService.uploadReportTpl(file, tplId, userInfoDto);;
+		JSONArray result = this.iReportTplService.uploadReportTpl(file, tplId,isFormsReport, userInfoDto);;
 		Response response = new Response();
 		response.setCode("200");
 		response.setResponseData(result);
-		resultStr=JsonUtil.toJson(response);
+		resultStr=JSONUtil.toJsonStr(response);
 		try {
 	         byte dest[]= Pako_GzipUtils.compress2(resultStr);
 	         OutputStream out=httpServletResponse.getOutputStream();
@@ -948,5 +991,21 @@ public class ReportTplController extends BaseController {
 	{
 		JSONObject result = this.iReportTplService.getTplAuth(model, userInfoDto);
 		return Response.success(result);
+	}
+	
+	/**  
+	 * @MethodName: deleteReportData
+	 * @Description: 填报报表删除数据
+	 * @author caiyang
+	 * @param model
+	 * @param userInfoDto
+	 * @return Response
+	 * @date 2025-02-17 12:09:52 
+	 */ 
+	@RequestMapping(value = "/deleteReportData",method = RequestMethod.POST)
+	@MethodLog(module="ReportTpl",remark="填报报表删除数据",operateType=Constants.OPERATE_TYPE_DELETE)
+	public Response deleteReportData(@RequestBody JSONObject model,@LoginUser UserInfoDto userInfoDto) {
+		BaseEntity result = this.iReportTplFormsService.deleteReportData(model,userInfoDto);
+		return Response.success(result,result.getStatusMsg());
 	}
 }

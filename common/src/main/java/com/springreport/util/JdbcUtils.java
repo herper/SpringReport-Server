@@ -29,6 +29,7 @@ import org.elasticsearch.xpack.sql.jdbc.EsDataSource;
 import org.influxdb.dto.QueryResult;
 
 import com.alibaba.druid.pool.DruidDataSource;
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.springreport.base.DataSourceConfig;
@@ -38,6 +39,7 @@ import com.springreport.base.ReportDataDetailDto;
 import com.springreport.base.SqlWhereDto;
 import com.springreport.base.TDengineConfig;
 import com.springreport.base.TDengineConnection;
+import com.springreport.base.UserInfoDto;
 import com.springreport.constants.Constants;
 import com.springreport.constants.StatusCode;
 import com.springreport.enums.DriverClassEnum;
@@ -276,7 +278,7 @@ public class JdbcUtils {
 	* @param sqlText
 	* @return
 	*/
-	public static List<Map<String, Object>> parseMetaDataColumns(DataSource dataSource,String sqlText,int dataSourceType,String sqlParams) {
+	public static List<Map<String, Object>> parseMetaDataColumns(DataSource dataSource,String sqlText,int dataSourceType,String sqlParams,UserInfoDto userInfoDto) {
 		List<Map<String, Object>> result = null;
 		Connection conn = null;
 	    Statement stmt = null;
@@ -313,9 +315,17 @@ public class JdbcUtils {
 						}
 						
 					}
-					sqlText = VelocityUtil.parseInfluxdb(sqlText, params,"influxdb");
 				}
 			}
+	       //系统变量
+			if(userInfoDto != null) {
+				JSONObject jsonObject = JSON.parseObject(JSON.toJSONString(userInfoDto));
+				for (int i = 0; i < Constants.SYSTEM_PARAM.length; i++) {
+					Object value = jsonObject.get(Constants.SYSTEM_PARAM[i]);
+					params.put(Constants.SYSTEM_PARAM[i], value);
+				}
+			}
+			sqlText = VelocityUtil.parseInfluxdb(sqlText, params,"influxdb");
 	        rs = stmt.executeQuery(JdbcUtils.preprocessSqlText(sqlText,dataSourceType,params));
             final ResultSetMetaData rsMataData = rs.getMetaData();
             final int count = rsMataData.getColumnCount();
@@ -341,7 +351,7 @@ public class JdbcUtils {
 	    return result;
 	}
 	
-	public static List<Map<String, Object>> parseMetaDataColumns(DataSource dataSource,String sqlText,int dataSourceType,String sqlParams,String username,String password) {
+	public static List<Map<String, Object>> parseMetaDataColumns(DataSource dataSource,String sqlText,int dataSourceType,String sqlParams,String username,String password,UserInfoDto userInfoDto) {
 		List<Map<String, Object>> result = null;
 		Connection conn = null;
 	    Statement stmt = null;
@@ -377,9 +387,17 @@ public class JdbcUtils {
 							params.put(paramCode, paramDefault);
 						}
 					}
-					sqlText = VelocityUtil.parseInfluxdb(sqlText, params,"influxdb");
 				}
 			}
+	      //系统变量
+			if(userInfoDto != null) {
+				JSONObject jsonObject = JSON.parseObject(JSON.toJSONString(userInfoDto));
+				for (int i = 0; i < Constants.SYSTEM_PARAM.length; i++) {
+					Object value = jsonObject.get(Constants.SYSTEM_PARAM[i]);
+					params.put(Constants.SYSTEM_PARAM[i], value);
+				}
+			}
+	        sqlText = VelocityUtil.parseInfluxdb(sqlText, params,"influxdb");
 	        rs = stmt.executeQuery(JdbcUtils.preprocessSqlText(sqlText,dataSourceType,params));
             final ResultSetMetaData rsMataData = rs.getMetaData();
             final int count = rsMataData.getColumnCount();
@@ -405,7 +423,7 @@ public class JdbcUtils {
 	    return result;
 	}
 	
-	public static List<Map<String, Object>> parseMetaDataColumns(Connection conn,String sqlText,int dataSourceType,String sqlParams) {
+	public static List<Map<String, Object>> parseMetaDataColumns(Connection conn,String sqlText,int dataSourceType,String sqlParams,UserInfoDto userInfoDto) {
 		List<Map<String, Object>> result = null;
 	    Statement stmt = null;
 	    ResultSet rs = null;
@@ -435,9 +453,17 @@ public class JdbcUtils {
 						}
 						
 					}
-					sqlText = VelocityUtil.parseInfluxdb(sqlText, params,"influxdb");
 				}
 			}
+	       //系统变量
+			if(userInfoDto != null) {
+				JSONObject jsonObject = JSON.parseObject(JSON.toJSONString(userInfoDto));
+				for (int i = 0; i < Constants.SYSTEM_PARAM.length; i++) {
+					Object value = jsonObject.get(Constants.SYSTEM_PARAM[i]);
+					params.put(Constants.SYSTEM_PARAM[i], value);
+				}
+			}
+	        sqlText = VelocityUtil.parseInfluxdb(sqlText, params,"influxdb");
 	        rs = stmt.executeQuery(JdbcUtils.preprocessSqlText(sqlText,dataSourceType,params));
             final ResultSetMetaData rsMataData = rs.getMetaData();
             final int count = rsMataData.getColumnCount();
@@ -458,7 +484,7 @@ public class JdbcUtils {
 	    return result;
 	}
 	
-	public static List<Map<String, Object>> parseInfluxdbColumns(InfluxDBConnection dbConnection,String sqlText,int dataSourceType,String sqlParams) throws SQLException
+	public static List<Map<String, Object>> parseInfluxdbColumns(InfluxDBConnection dbConnection,String sqlText,int dataSourceType,String sqlParams,UserInfoDto userInfoDto) throws SQLException
 	{
 		List<Map<String, Object>> result = new ArrayList<>();
 		Map<String, Object> params = new HashMap<>();
@@ -477,10 +503,17 @@ public class JdbcUtils {
 					}
 					params.put(paramCode, paramDefault);
 				}
-				sqlText = VelocityUtil.parseInfluxdb(sqlText, params,"influxdb");
 			}
 		}
-		
+		//系统变量
+		if(userInfoDto != null) {
+			JSONObject jsonObject = JSON.parseObject(JSON.toJSONString(userInfoDto));
+			for (int i = 0; i < Constants.SYSTEM_PARAM.length; i++) {
+				Object value = jsonObject.get(Constants.SYSTEM_PARAM[i]);
+				params.put(Constants.SYSTEM_PARAM[i], value);
+			}
+		}
+		sqlText = VelocityUtil.parseInfluxdb(sqlText, params,"influxdb");
 		String sql = JdbcUtils.preprocessSqlText(sqlText,dataSourceType,params);
 		QueryResult queryResult = dbConnection.query(sql);
 		if(queryResult.getResults().get(0).getSeries() != null)
@@ -499,7 +532,7 @@ public class JdbcUtils {
 		return result;
 	}
 	
-	public static List<Map<String, Object>> parseProcedureColumns(DataSource dataSource,String sqlText,int dataSourceType,JSONArray inParams,JSONArray outParams){
+	public static List<Map<String, Object>> parseProcedureColumns(DataSource dataSource,String sqlText,int dataSourceType,JSONArray inParams,JSONArray outParams,UserInfoDto userInfoDto){
 		List<Map<String, Object>> result = null;
 		Connection conn = null;
 		CallableStatement cstm = null;
@@ -515,32 +548,103 @@ public class JdbcUtils {
 	    		sqlText = sqlText + "}";
 	    	}
 	    	cstm = conn.prepareCall(sqlText); //实例化对象cstm
+	    	//系统变量
+	    	Map<String, Object> systemParams = new HashMap<>();
+			if(userInfoDto != null) {
+				JSONObject jsonObject = JSON.parseObject(JSON.toJSONString(userInfoDto));
+				for (int i = 0; i < Constants.SYSTEM_PARAM.length; i++) {
+					Object value = jsonObject.get(Constants.SYSTEM_PARAM[i]);
+					systemParams.put("paramDefault", value);
+				}
+			}
 	    	if(!ListUtil.isEmpty(inParams))
     		{
 	    		JSONObject jsonObject = null;
     			for (int i = 0; i < inParams.size(); i++) {
     				jsonObject = (JSONObject) inParams.get(i);
+    				String paramCode = jsonObject.getString("paramCode");
+    				if(systemParams.containsKey(paramCode) && StringUtil.isNullOrEmpty(jsonObject.getString("paramDefault"))) {
+    					//系统参数如果没有设置默认值，则设置默认值为当前登录用户的信息
+    					jsonObject.put("paramDefault", systemParams.get(paramCode));
+    				}
+    				//数值类的参数，没有默认值，不输入的时候传0，因为不支持传null
     				if(InParamTypeEnum.INT.getCode().equals(jsonObject.getString("paramType")))
     				{
-    					cstm.setInt(i+1, Integer.valueOf(String.valueOf(jsonObject.get("paramDefault"))));
+    					if(StringUtil.isNotEmpty(jsonObject.getString("paramDefault"))) {
+    						cstm.setInt(i+1, Integer.valueOf(String.valueOf(jsonObject.get("paramDefault"))));
+    					}else {
+    						cstm.setInt(i+1, 0);
+    					}
     				}else if(InParamTypeEnum.STRING.getCode().equals(jsonObject.getString("paramType")))
     				{
-    					cstm.setString(i+1, String.valueOf(jsonObject.get("paramDefault")));
+    					if(StringUtil.isNotEmpty(jsonObject.getString("paramDefault"))) {
+    						cstm.setString(i+1, String.valueOf(jsonObject.get("paramDefault")));
+    					}else {
+    						cstm.setString(i+1, null);
+    					}
     				}else if(InParamTypeEnum.LONG.getCode().equals(jsonObject.getString("paramType")))
     				{
-    					cstm.setLong(i+1, Long.valueOf(String.valueOf(jsonObject.get("paramDefault"))));
+    					if(StringUtil.isNotEmpty(jsonObject.getString("paramDefault"))) {
+    						cstm.setLong(i+1, Long.valueOf(String.valueOf(jsonObject.get("paramDefault"))));
+    					}else {
+    						cstm.setLong(i+1, 0);
+    					}
     				}else if(InParamTypeEnum.DOUBLE.getCode().equals(jsonObject.getString("paramType")))
     				{
-    					cstm.setDouble(i+1, Double.valueOf(String.valueOf(jsonObject.get("paramDefault"))));
+    					if(StringUtil.isNotEmpty(jsonObject.getString("paramDefault"))) {
+    						cstm.setDouble(i+1, Double.valueOf(String.valueOf(jsonObject.get("paramDefault"))));
+    					}else {
+    						cstm.setDouble(i+1, 0);
+    					}
     				}else if(InParamTypeEnum.FLOAT.getCode().equals(jsonObject.getString("paramType")))
     				{
-    					cstm.setFloat(i+1, Float.valueOf(String.valueOf(jsonObject.get("paramDefault"))));
+    					if(StringUtil.isNotEmpty(jsonObject.getString("paramDefault"))) {
+    						cstm.setFloat(i+1, Float.valueOf(String.valueOf(jsonObject.get("paramDefault"))));
+    					}else {
+    						cstm.setFloat(i+1, 0);
+    					}
     				}else if(InParamTypeEnum.BIGDECIMAL.getCode().equals(jsonObject.getString("paramType")))
     				{
-    					cstm.setBigDecimal(i+1, new BigDecimal(String.valueOf(jsonObject.get("paramDefault"))));
+    					if(StringUtil.isNotEmpty(jsonObject.getString("paramDefault"))) {
+    						cstm.setBigDecimal(i+1, new BigDecimal(String.valueOf(jsonObject.get("paramDefault"))));
+    					}else {
+    						cstm.setBigDecimal(i+1, new BigDecimal(0));
+    					}
     				}else if(InParamTypeEnum.DATE.getCode().equals(jsonObject.getString("paramType")))
     				{
-    					cstm.setDate(i+1, DateUtil.string2SqlDate(String.valueOf(jsonObject.get("paramDefault")),DateUtil.FORMAT_LONOGRAM));
+    					String dateFormat = jsonObject.getString("dateFormat");
+    					if(StringUtil.isNullOrEmpty(dateFormat)) {
+    						dateFormat = DateUtil.FORMAT_LONOGRAM;
+    					}
+    					if("YYYY-MM-DD".equals(dateFormat))
+						{
+							dateFormat = DateUtil.FORMAT_LONOGRAM;
+						}else if("YYYY-MM".equals(dateFormat))
+						{
+							dateFormat = DateUtil.FORMAT_YEARMONTH;
+						}else if("YYYY-MM-DD HH:mm".equals(dateFormat))
+						{
+							dateFormat = DateUtil.FORMAT_WITHOUTSECONDS;
+						}else if("YYYY".equals(dateFormat))
+						{
+							dateFormat = DateUtil.FORMAT_YEAR;
+						}
+    					String defaultDate = "";
+    					try {
+    						defaultDate = DateUtil.getDefaultDate(String.valueOf(jsonObject.get("paramDefault")),dateFormat);
+						} catch (Exception e) {
+							defaultDate = DateUtil.getNow(DateUtil.FORMAT_LONOGRAM);
+						}
+    					cstm.setDate(i+1, DateUtil.string2SqlDate(defaultDate,dateFormat));
+    				}else if(InParamTypeEnum.DATETIME.getCode().equals(jsonObject.getString("paramType")))
+    				{
+    					String defaultDate = "";
+    					try {
+    						defaultDate = DateUtil.getDefaultDate(String.valueOf(jsonObject.get("paramDefault")),DateUtil.FORMAT_FULL);
+						} catch (Exception e) {
+							defaultDate = DateUtil.getNow(DateUtil.FORMAT_FULL);
+						}
+    					cstm.setTimestamp(i+1, DateUtil.string2SqlTimestamp(defaultDate,DateUtil.FORMAT_FULL));
     				}
 				}
     		}
@@ -684,7 +788,7 @@ public class JdbcUtils {
 	 */ 
 	public static String getPaginationSql(String sql,int dataSourceType,int pageCount,int currentPage) throws JSQLParserException {
 		sql = sql.replaceAll(";", "");
-		if(DriverClassEnum.MYSQL.getCode().intValue() == dataSourceType || DriverClassEnum.DAMENG.getCode().intValue() == dataSourceType)
+		if(DriverClassEnum.MYSQL.getCode().intValue() == dataSourceType || DriverClassEnum.DAMENG.getCode().intValue() == dataSourceType || DriverClassEnum.DORIS.getCode().intValue() == dataSourceType)
 		{
 			sql = sql + " limit " + (currentPage-1)*pageCount + "," + pageCount;
 		}else if(DriverClassEnum.ORACLE.getCode().intValue() == dataSourceType)
@@ -695,7 +799,7 @@ public class JdbcUtils {
 		{
 			sql = "select row_number () over (order by rand()) page_row_number,* from (" + sql + ") as page_table_alias";
 			sql = "select top "+pageCount + " * from (" + sql + ") as page_table_alias where page_row_number > " + (currentPage-1)*pageCount + "order by page_row_number";
-		}else if(DriverClassEnum.POSTGRESQL.getCode().intValue() == dataSourceType || DriverClassEnum.KINGBASE.getCode().intValue() == dataSourceType) {
+		}else if(DriverClassEnum.POSTGRESQL.getCode().intValue() == dataSourceType || DriverClassEnum.KINGBASE.getCode().intValue() == dataSourceType || DriverClassEnum.HIGODB.getCode().intValue() == dataSourceType) {
 			sql = sql + " limit " + pageCount + " offset " + (currentPage-1)*pageCount;
 		}else if(DriverClassEnum.INFLUXDB.getCode().intValue() == dataSourceType || DriverClassEnum.TDENGINE.getCode().intValue() == dataSourceType) {
 			sql = sql + " limit " + pageCount + " offset " + (currentPage-1)*pageCount;
@@ -838,7 +942,11 @@ public class JdbcUtils {
 			Class.forName(dataSourceConfig.getDriverClass());//加载驱动类
 			Connection conn=DriverManager.getConnection(dataSourceConfig.getJdbcUrl(),dataSourceConfig.getUser(),dataSourceConfig.getPassword());//用参数得到连接对象
 			DatabaseMetaData metaData = conn.getMetaData();
-			ResultSet tables = metaData.getTables(conn.getCatalog(), conn.getSchema(), null, new String[]{"TABLE"});
+			String schema = null;
+			if(!DriverClassEnum.SQLSERVER.getName().equals(dataSourceConfig.getDriverClass())) {
+				schema = conn.getSchema();
+			}
+			ResultSet tables = metaData.getTables(conn.getCatalog(), schema, null, new String[]{"TABLE"});
 			while (tables.next()) {
 				Map<String, String> map = new HashMap<>();
 				map.put("name", tables.getString("TABLE_NAME"));

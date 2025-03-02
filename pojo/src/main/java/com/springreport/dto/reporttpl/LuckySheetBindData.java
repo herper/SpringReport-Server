@@ -296,7 +296,7 @@ public class LuckySheetBindData {
     private Integer isRelyCell = YesNoEnum.NO.getCode();
     
     /**  
-     * @Fields relyCellExtend : 依赖单元格的扩展方向 单元格扩展方向 1不扩展 2纵向扩展 3横向扩展 4交叉扩展
+     * @Fields relyCellExtend : 依赖单元格的扩展方向 单元格扩展方向 1不扩展 3纵向扩展 2横向扩展 4交叉扩展
      * @author caiyang
      * @date 2023-03-03 04:40:22 
      */  
@@ -503,4 +503,18 @@ public class LuckySheetBindData {
      * @date 2024-08-23 03:33:34 
      */  
     private String cellText;
+    
+    /**  
+     * @Fields cellFillType : 数据填充方式 1插入 2覆盖
+     * @author caiyang
+     * @date 2024-12-31 11:26:00 
+     */  
+    private Integer cellFillType = 1;
+    
+    /**  
+     * @Fields tplType : 是否是填报数据 1是 2否
+     * @author caiyang
+     * @date 2025-01-31 03:00:27 
+     */  
+    private int tplType = 1;
 }

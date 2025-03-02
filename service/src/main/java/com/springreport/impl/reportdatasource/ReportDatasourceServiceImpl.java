@@ -5,7 +5,9 @@ import com.springreport.entity.reporttpldataset.ReportTplDataset;
 import com.springreport.mapper.reportdatasource.ReportDatasourceMapper;
 import com.springreport.api.reportdatasource.IReportDatasourceService;
 import com.springreport.api.reporttpl.IReportTplService;
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
@@ -35,6 +37,7 @@ import com.springreport.base.InfluxDbDataSourceConfig;
 import com.springreport.base.PageEntity;
 import com.springreport.base.TDengineConfig;
 import com.springreport.base.TDengineConnection;
+import com.springreport.base.UserInfoDto;
 import com.springreport.constants.Constants;
 import com.springreport.constants.StatusCode;
 import com.springreport.dto.reportdatasource.ApiTestResultDto;
@@ -94,6 +97,11 @@ public class ReportDatasourceServiceImpl extends ServiceImpl<ReportDatasourceMap
 		model.setDelFlag(DelFlagEnum.UNDEL.getCode());
 		com.github.pagehelper.Page<?> page = PageHelper.startPage(model.getCurrentPage(), model.getPageSize()); //分页条件
 		List<ReportDatasource> list = this.baseMapper.searchDataLike(model);
+		if(ListUtil.isNotEmpty(list)) {
+			for (int i = 0; i < list.size(); i++) {
+				list.get(i).setPassword(null);
+			}
+		}
 		result.setData(list);
 		result.setTotal(page.getTotal());
 		result.setCurrentPage(model.getCurrentPage());
@@ -157,6 +165,11 @@ public class ReportDatasourceServiceImpl extends ServiceImpl<ReportDatasourceMap
 		}else if(DriverClassEnum.KINGBASE.getCode().intValue() == model.getType().intValue())
 		{
 			model.setDriverClass(DriverClassEnum.KINGBASE.getName());
+		}else if(DriverClassEnum.HIGODB.getCode().intValue() == model.getType().intValue())
+		{
+			model.setDriverClass(DriverClassEnum.HIGODB.getName());
+		}else if (DriverClassEnum.DORIS.getCode().intValue() == model.getType().intValue()) {
+			model.setDriverClass(DriverClassEnum.DORIS.getName());
 		}
 		this.save(model);
 		result.setStatusMsg(MessageUtil.getValue("info.insert"));
@@ -207,6 +220,11 @@ public class ReportDatasourceServiceImpl extends ServiceImpl<ReportDatasourceMap
 		}else if(DriverClassEnum.KINGBASE.getCode().intValue() == model.getType().intValue())
 		{
 			model.setDriverClass(DriverClassEnum.KINGBASE.getName());
+		}else if(DriverClassEnum.HIGODB.getCode().intValue() == model.getType().intValue())
+		{
+			model.setDriverClass(DriverClassEnum.HIGODB.getName());
+		}else if (DriverClassEnum.DORIS.getCode().intValue() == model.getType().intValue()) {
+			model.setDriverClass(DriverClassEnum.DORIS.getName());
 		}
 		this.updateById(model);
 		result.setStatusMsg(MessageUtil.getValue("info.update"));
@@ -293,7 +311,7 @@ public class ReportDatasourceServiceImpl extends ServiceImpl<ReportDatasourceMap
 	 * @throws Exception 
 	*/
 	@Override
-	public List<Map<String, Object>> execSql(MesExecSqlDto mesExecSqlDto) throws Exception {
+	public List<Map<String, Object>> execSql(MesExecSqlDto mesExecSqlDto,UserInfoDto userInfoDto) throws Exception {
 		//获取模板信息
 //		ReportTpl reportTpl = iReportTplService.getById(mesExecSqlDto.getTplId());
 //		if (reportTpl == null) {
@@ -311,11 +329,11 @@ public class ReportDatasourceServiceImpl extends ServiceImpl<ReportDatasourceMap
 			if(dbConnection == null) {
 				throw new BizException(StatusCode.FAILURE, "influxdb连接失败!");
 			}
-			result = JdbcUtils.parseInfluxdbColumns(dbConnection, mesExecSqlDto.getTplSql(), reportDatasource.getType(),mesExecSqlDto.getSqlParams());
+			result = JdbcUtils.parseInfluxdbColumns(dbConnection, mesExecSqlDto.getTplSql(), reportDatasource.getType(),mesExecSqlDto.getSqlParams(),userInfoDto);
 		}else if(reportDatasource.getType().intValue() == 10) {
 			TDengineConfig config = new TDengineConfig(mesExecSqlDto.getDatasourceId(), reportDatasource.getUserName(), reportDatasource.getPassword(), reportDatasource.getJdbcUrl());
 			TDengineConnection tDengineConnection = new TDengineConnection(config.getJdbcUrl(), config.getUsername(), config.getPassword());
-			result = JdbcUtils.parseMetaDataColumns(tDengineConnection.getConnection(), mesExecSqlDto.getTplSql(),reportDatasource.getType(),mesExecSqlDto.getSqlParams());
+			result = JdbcUtils.parseMetaDataColumns(tDengineConnection.getConnection(), mesExecSqlDto.getTplSql(),reportDatasource.getType(),mesExecSqlDto.getSqlParams(),userInfoDto);
 		}else {
 			//获取数据源
 			DataSource dataSource = null;
@@ -332,13 +350,13 @@ public class ReportDatasourceServiceImpl extends ServiceImpl<ReportDatasourceMap
 			{//标准sql
 				if(reportDatasource.getType().intValue() == 9)
 				{
-					result = JdbcUtils.parseMetaDataColumns(dataSource, mesExecSqlDto.getTplSql(),reportDatasource.getType(),mesExecSqlDto.getSqlParams(),reportDatasource.getUserName(),reportDatasource.getPassword());
+					result = JdbcUtils.parseMetaDataColumns(dataSource, mesExecSqlDto.getTplSql(),reportDatasource.getType(),mesExecSqlDto.getSqlParams(),reportDatasource.getUserName(),reportDatasource.getPassword(),userInfoDto);
 				}else {
-					result = JdbcUtils.parseMetaDataColumns(dataSource, mesExecSqlDto.getTplSql(),reportDatasource.getType(),mesExecSqlDto.getSqlParams());
+					result = JdbcUtils.parseMetaDataColumns(dataSource, mesExecSqlDto.getTplSql(),reportDatasource.getType(),mesExecSqlDto.getSqlParams(),userInfoDto);
 				}
 			}else {
 			 //存储过程
-				result = JdbcUtils.parseProcedureColumns(dataSource, mesExecSqlDto.getTplSql(), reportDatasource.getType(), JSONArray.parseArray(mesExecSqlDto.getInParam()), JSONArray.parseArray(mesExecSqlDto.getOutParam()));
+				result = JdbcUtils.parseProcedureColumns(dataSource, mesExecSqlDto.getTplSql(), reportDatasource.getType(), JSONArray.parseArray(mesExecSqlDto.getInParam()), JSONArray.parseArray(mesExecSqlDto.getOutParam()),userInfoDto);
 			}
 		}
 		
@@ -377,8 +395,16 @@ public class ReportDatasourceServiceImpl extends ServiceImpl<ReportDatasourceMap
 				}
 			}
 			String requestResult = HttpClientUtil.connectionTest(reportDatasource.getJdbcUrl(),reportDatasource.getApiRequestType(),null,headers);
-			result.setStatusMsg("接口连接测试成功！");
-			result.setApiResult(requestResult);
+			if(requestResult.startsWith("{\"errCode\":\"50001\"")) {
+				JSONObject jsonObject = JSON.parseObject(requestResult);
+				result.setStatusCode(StatusCode.FAILURE);
+				result.setStatusMsg("接口连接测试失败，错误信息："+jsonObject.getString("errMsg"));
+				result.setApiResult(requestResult);
+			}else {
+				result.setStatusMsg("接口连接测试成功！");
+				result.setApiResult(requestResult);
+			}
+			
 		}else if(reportDatasource.getType().intValue() == 6) {
 			boolean isSuccess = JdbcUtils.influxdbTest(reportDatasource.getUserName(), reportDatasource.getPassword(), reportDatasource.getJdbcUrl().substring(0,reportDatasource.getJdbcUrl().lastIndexOf("/")), null, null);
 			if(isSuccess)
@@ -428,6 +454,12 @@ public class ReportDatasourceServiceImpl extends ServiceImpl<ReportDatasourceMap
 			}else if(DriverClassEnum.KINGBASE.getCode().intValue() == reportDatasource.getType().intValue())
 			{
 				reportDatasource.setDriverClass(DriverClassEnum.KINGBASE.getName());
+			}else if(DriverClassEnum.HIGODB.getCode().intValue() == reportDatasource.getType().intValue())
+			{
+				reportDatasource.setDriverClass(DriverClassEnum.HIGODB.getName());
+			}else if(DriverClassEnum.DORIS.getCode().intValue() == reportDatasource.getType().intValue())
+			{
+				reportDatasource.setDriverClass(DriverClassEnum.DORIS.getName());
 			}
 			//数据库
 			//数据源配置
@@ -473,7 +505,7 @@ public class ReportDatasourceServiceImpl extends ServiceImpl<ReportDatasourceMap
 	 */  
 	@Override
 	@Async
-	public void cacheDatasetsColumns(List<ReportTplDataset> reportTplDatasets) throws Exception {
+	public void cacheDatasetsColumns(List<ReportTplDataset> reportTplDatasets,UserInfoDto userInfoDto) throws Exception {
 		if(reportTplDatasets != null && reportTplDatasets.size() > 0)
 		{
 			List<Map<String, Object>> columns = null;
@@ -493,11 +525,11 @@ public class ReportDatasourceServiceImpl extends ServiceImpl<ReportDatasourceMap
 								if(dbConnection == null) {
 									throw new BizException(StatusCode.FAILURE, "influxdb连接失败!");
 								}
-								columns = JdbcUtils.parseInfluxdbColumns(dbConnection, reportTplDatasets.get(i).getTplSql(), reportDatasource.getType(),reportTplDatasets.get(i).getTplParam());
+								columns = JdbcUtils.parseInfluxdbColumns(dbConnection, reportTplDatasets.get(i).getTplSql(), reportDatasource.getType(),reportTplDatasets.get(i).getTplParam(),userInfoDto);
 							}else if(reportDatasource.getType().intValue() == 10){
 								TDengineConfig config = new TDengineConfig(reportTplDatasets.get(i).getDatasourceId(), reportDatasource.getUserName(), reportDatasource.getPassword(), reportDatasource.getJdbcUrl());
 								TDengineConnection tDengineConnection = new TDengineConnection(config.getJdbcUrl(), config.getUsername(), config.getPassword());
-								columns = JdbcUtils.parseMetaDataColumns(tDengineConnection.getConnection(), reportTplDatasets.get(i).getTplSql(),reportDatasource.getType(),reportTplDatasets.get(i).getTplParam());
+								columns = JdbcUtils.parseMetaDataColumns(tDengineConnection.getConnection(), reportTplDatasets.get(i).getTplSql(),reportDatasource.getType(),reportTplDatasets.get(i).getTplParam(),userInfoDto);
 							}else {
 								DataSource dataSource = null;
 								if(reportDatasource.getType().intValue() == 9)
@@ -515,12 +547,12 @@ public class ReportDatasourceServiceImpl extends ServiceImpl<ReportDatasourceMap
 								{
 									if(reportDatasource.getType().intValue() == 9)
 									{
-										columns = JdbcUtils.parseMetaDataColumns(dataSource, reportTplDatasets.get(i).getTplSql(),reportDatasource.getType(),reportTplDatasets.get(i).getTplParam(),reportDatasource.getUserName(),reportDatasource.getPassword());
+										columns = JdbcUtils.parseMetaDataColumns(dataSource, reportTplDatasets.get(i).getTplSql(),reportDatasource.getType(),reportTplDatasets.get(i).getTplParam(),reportDatasource.getUserName(),reportDatasource.getPassword(),userInfoDto);
 									}else {
-										columns = JdbcUtils.parseMetaDataColumns(dataSource, reportTplDatasets.get(i).getTplSql(),reportDatasource.getType(),reportTplDatasets.get(i).getTplParam());
+										columns = JdbcUtils.parseMetaDataColumns(dataSource, reportTplDatasets.get(i).getTplSql(),reportDatasource.getType(),reportTplDatasets.get(i).getTplParam(),userInfoDto);
 									}
 								}else {
-									columns = JdbcUtils.parseProcedureColumns(dataSource, reportTplDatasets.get(i).getTplSql(), reportDatasource.getType(), JSONArray.parseArray(reportTplDatasets.get(i).getInParam()), JSONArray.parseArray(reportTplDatasets.get(i).getOutParam()));
+									columns = JdbcUtils.parseProcedureColumns(dataSource, reportTplDatasets.get(i).getTplSql(), reportDatasource.getType(), JSONArray.parseArray(reportTplDatasets.get(i).getInParam()), JSONArray.parseArray(reportTplDatasets.get(i).getOutParam()),userInfoDto);
 								}
 							}
 							redisUtil.set(RedisPrefixEnum.DATASETCOLUMN.getCode()+String.valueOf(reportTplDatasets.get(i).getId()), columns);
@@ -566,6 +598,106 @@ public class ReportDatasourceServiceImpl extends ServiceImpl<ReportDatasourceMap
 		//获取数据源
 //		DataSource dataSource = JdbcUtils.getDataSource(dataSourceConfig);
 		result = JdbcUtils.parseDatabaseTables(dataSourceConfig);
+		return result;
+	}
+
+
+	/**  
+	 * @MethodName: parseApiResultAttr
+	 * @Description: 解析api数据集结果属性
+	 * @author caiyang
+	 * @param reportDatasource
+	 * @return
+	 * @see com.springreport.api.reportdatasource.IReportDatasourceService#parseApiResultAttr(com.springreport.entity.reportdatasource.ReportDatasource)
+	 * @date 2024-12-24 03:02:19 
+	 */
+	@Override
+	public JSONArray parseApiResultAttr(ReportDatasource reportDatasource) {
+		JSONArray result = new JSONArray();
+		Map<String, String> headers = new HashMap<>();
+		if(StringUtil.isNotEmpty(reportDatasource.getApiRequestHeader()))
+		{
+			JSONArray jsonArray = JSONArray.parseArray(reportDatasource.getApiRequestHeader());
+			if(!ListUtil.isEmpty(jsonArray))
+			{
+				for (int i = 0; i < jsonArray.size(); i++) {
+					String headerName = jsonArray.getJSONObject(i).getString("headerName");
+					String headerValue = jsonArray.getJSONObject(i).getString("headerValue");
+					if(StringUtil.isNotEmpty(headerValue))
+					{
+						headers.put(headerName, headerValue);
+					}
+				}
+			}
+		}
+		String requestResult = HttpClientUtil.connectionTest(reportDatasource.getJdbcUrl(),reportDatasource.getApiRequestType(),null,headers);
+		if(StringUtil.isNotEmpty(requestResult)) {
+			if("ObjectArray".equals(reportDatasource.getApiResultType())) {
+				//对象数组
+				try {
+					JSONArray resultArray = JSON.parseArray(requestResult);
+					if(ListUtil.isNotEmpty(resultArray)) {
+						JSONObject jsonObject = resultArray.getJSONObject(0);
+						JSONObject attr = null;
+						for (String key : jsonObject.keySet()) {
+							attr = new JSONObject();
+							attr.put("propCode", key);
+							attr.put("propName", key);
+							result.add(attr);
+						}
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+					throw new BizException(StatusCode.FAILURE, MessageUtil.getValue("error.jsonarrayparse"));
+				}
+			}else if("Object".equals(reportDatasource.getApiResultType())) {
+				//对象
+				try {
+					JSONObject resultObject = JSON.parseObject(requestResult);
+					if(StringUtil.isNullOrEmpty(reportDatasource.getApiColumnsPrefix())) {
+						JSONObject attr = null;
+						for (String key : resultObject.keySet()) {
+							attr = new JSONObject();
+							attr.put("propCode", key);
+							attr.put("propName", key);
+							result.add(attr);
+						}
+					}else {
+						String[] prefix = reportDatasource.getApiColumnsPrefix().split("\\.");
+						Object data = null;
+						for (int i = 0; i < prefix.length; i++) {
+							data = resultObject.get(prefix[i]);
+							if(data instanceof JSONObject) {
+								resultObject = (JSONObject) data;
+							}else if(data instanceof JSONArray) {
+								break;
+							}
+						}
+						JSONObject dataObj = null;
+						if(data instanceof JSONObject) {
+							dataObj = (JSONObject) data;
+						}else if(data instanceof JSONArray) {
+							JSONArray dataArray = (JSONArray) data;
+							if(ListUtil.isNotEmpty(dataArray)) {
+								dataObj = dataArray.getJSONObject(0);
+							}
+						}
+						if(dataObj != null) {
+							JSONObject attr = null;
+							for (String key : dataObj.keySet()) {
+								attr = new JSONObject();
+								attr.put("propCode", key);
+								attr.put("propName", key);
+								result.add(attr);
+							}
+						}
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+					throw new BizException(StatusCode.FAILURE, MessageUtil.getValue("error.jsonparse"));
+				}
+			}
+		}
 		return result;
 	}
 

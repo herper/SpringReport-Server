@@ -29,6 +29,7 @@ import com.springreport.dto.reporttpldataset.MesScreenGetSqlDataDto;
 import com.springreport.dto.reporttpldataset.ReportDatasetDto;
 import com.springreport.dto.reporttpldataset.ReportTplDatasetDto;
 import com.springreport.entity.reporttpldataset.ReportTplDataset;
+import com.springreport.entity.reporttpldatasetgroup.ReportTplDatasetGroup;
 import com.springreport.enums.RedisPrefixEnum;
 import com.springreport.exception.BizException;
 import com.springreport.util.MessageUtil;
@@ -92,8 +93,8 @@ public class ReportTplDatasetController extends BaseController {
 	@MethodLog(module="ReportTplDataset",remark="获取模板关联的数据集",operateType=Constants.OPERATE_TYPE_SEARCH)
 	@Check({"tplId:required#模板ID"})
 	@RequiresPermissions(value = {"reportTpl_reportDesign","screenTpl_screenDesign","slidTpl_design","docTpl_design"},logical = Logical.OR)
-	public Response getTplDatasets(@RequestBody ReportTplDataset dataset) throws Exception {
-		List<ReportDatasetDto> result = this.iReportTplDatasetService.getTplDatasets(dataset);
+	public Response getTplDatasets(@RequestBody ReportTplDataset dataset,@LoginUser UserInfoDto userInfoDto) throws Exception {
+		List<ReportDatasetDto> result = this.iReportTplDatasetService.getTplDatasets(dataset,userInfoDto);
 		return Response.success(result);
 	}
 	
@@ -111,9 +112,9 @@ public class ReportTplDatasetController extends BaseController {
 	@MethodLog(module="ReportTplDataset",remark="获取数据集字段",operateType=Constants.OPERATE_TYPE_SEARCH)
 	@Check({"id:required#主键"})
 	@RequiresPermissions(value = {"reportTpl_reportDesign","screenTpl_screenDesign"},logical = Logical.OR)
-	public Response getDatasetColumns(@RequestBody ReportTplDataset dataset) throws Exception
+	public Response getDatasetColumns(@RequestBody ReportTplDataset dataset,@LoginUser UserInfoDto userInfoDto) throws Exception
 	{
-		List<Map<String, Object>> result = this.iReportTplDatasetService.getDatasetColumns(dataset);
+		List<Map<String, Object>> result = this.iReportTplDatasetService.getDatasetColumns(dataset,userInfoDto);
 		return Response.success(result);
 	}
 	
@@ -147,8 +148,8 @@ public class ReportTplDatasetController extends BaseController {
 	@MethodLog(module="ReportTplDataset",remark="添加模板数据集",operateType=Constants.OPERATE_TYPE_ADD)
 	@Check({"datasetName:required#数据集名称","tplId:required#模板id","datasourceId:required#数据源id"})
 	@RequiresPermissions(value = {"reportDesign_addDataSet","reportDesign_editDataSet","reportForms_addDataSet","reportForms_editDataSet","slidTpl_design","docTpl_design"},logical = Logical.OR)
-	public Response addTplDataSets(@RequestBody ReportTplDataset reportTplDataset) throws Exception {
-		ReportDatasetDto result = this.iReportTplDatasetService.addTplDataSets(reportTplDataset);
+	public Response addTplDataSets(@RequestBody ReportTplDataset reportTplDataset,@LoginUser UserInfoDto userInfoDto) throws Exception {
+		ReportDatasetDto result = this.iReportTplDatasetService.addTplDataSets(reportTplDataset,userInfoDto);
 		return Response.success(result);
 	}
 	
@@ -214,9 +215,9 @@ public class ReportTplDatasetController extends BaseController {
 	@MethodLog(module="ReportTplDataset",remark="获取数据集的列",operateType=Constants.OPERATE_TYPE_SEARCH)
 	@Check({"id:required#数据集id"})
 	@RequiresPermissions(value = {"screenTpl_screenDesign"})
-	public Response getTplDatasetColumns(@RequestBody ReportTplDataset reportTplDataset) throws Exception
+	public Response getTplDatasetColumns(@RequestBody ReportTplDataset reportTplDataset,@LoginUser UserInfoDto userInfoDto) throws Exception
 	{
-		List<Map<String, Object>> result = this.iReportTplDatasetService.getTplDatasetColumns(reportTplDataset);
+		List<Map<String, Object>> result = this.iReportTplDatasetService.getTplDatasetColumns(reportTplDataset,userInfoDto);
 		return Response.success(result);
 	}
 	
@@ -234,7 +235,7 @@ public class ReportTplDatasetController extends BaseController {
 	@RequestMapping(value = "/getSelectData",method = RequestMethod.POST)
 	@MethodLog(module="ReportTplDataset",remark="获取下拉数据",operateType=Constants.OPERATE_TYPE_SEARCH)
 	@Check({"selectContent:required#查询sql","datasourceId:required#数据源id","params:required#参数"})
-	@RequiresPermissions(value = {"reportDesign_previewReport","reportTpl_reportView","viewReport_view"},logical = Logical.OR)
+//	@RequiresPermissions(value = {"reportDesign_previewReport","reportTpl_reportView","viewReport_view"},logical = Logical.OR)
 	public Response getSelectData(@RequestBody MesGetRelyOnSelectData mesGetRelyOnSelectData) throws JSQLParserException {
 		List<Map<String, Object>> result = this.iReportTplDatasetService.getSelectData(mesGetRelyOnSelectData);
 		return Response.success(result);
@@ -253,7 +254,7 @@ public class ReportTplDatasetController extends BaseController {
 	@RequestMapping(value = "/getRelyOnData",method = RequestMethod.POST)
 	@MethodLog(module="ReportTplDataset",remark="获取依赖项的下拉数据",operateType=Constants.OPERATE_TYPE_SEARCH)
 	@Check({"selectContent:required#查询sql","datasourceId:required#数据源id","params:required#参数"})
-	@RequiresPermissions(value = {"reportDesign_previewReport","reportTpl_reportView","viewReport_view"},logical = Logical.OR)
+//	@RequiresPermissions(value = {"reportDesign_previewReport","reportTpl_reportView","viewReport_view"},logical = Logical.OR)
 	public Response getRelyOnSelectData(@RequestBody MesGetRelyOnSelectData mesGetRelyOnSelectData) throws JSQLParserException {
 		List<Map<String, Object>> result = this.iReportTplDatasetService.getRelyOnSelectData(mesGetRelyOnSelectData);
 		return Response.success(result);
@@ -272,9 +273,26 @@ public class ReportTplDatasetController extends BaseController {
 	@RequestMapping(value = "/getTreeSelectData",method = RequestMethod.POST)
 	@MethodLog(module="ReportTplDataset",remark="获取下拉数据",operateType=Constants.OPERATE_TYPE_SEARCH)
 	@Check({"selectContent:required#查询sql","datasourceId:required#数据源id","params:required#参数"})
-	@RequiresPermissions(value = {"reportDesign_previewReport","reportTpl_reportView","viewReport_view"},logical = Logical.OR)
+//	@RequiresPermissions(value = {"reportDesign_previewReport","reportTpl_reportView","viewReport_view"},logical = Logical.OR)
 	public Response getTreeSelectData(@RequestBody MesGetRelyOnSelectData mesGetRelyOnSelectData) throws JSQLParserException {
 		List<Map<String, Object>> result = this.iReportTplDatasetService.getTreeSelectData(mesGetRelyOnSelectData);
 		return Response.success(result);
 	}
+	
+	/** 
+	* @Description: 获取模板关联的数据集（分组）
+	* @param ReportTplDataset 
+	* @return Response 
+	 * @throws Exception 
+	 * @throws 
+	*/ 
+	@RequestMapping(value = "/getTplGroupDatasets",method = RequestMethod.POST)
+	@MethodLog(module="ReportTplDataset",remark="获取模板关联的数据集(分组)",operateType=Constants.OPERATE_TYPE_SEARCH)
+	@Check({"tplId:required#模板ID"})
+	@RequiresPermissions(value = {"reportTpl_reportDesign","screenTpl_screenDesign","slidTpl_design","docTpl_design"},logical = Logical.OR)
+	public Response getTplGroupDatasets(@RequestBody ReportTplDataset dataset,@LoginUser UserInfoDto userInfoDto) throws Exception {
+		List<ReportTplDatasetGroup> result = this.iReportTplDatasetService.getTplGroupDatasets(dataset,userInfoDto);
+		return Response.success(result);
+	}
+	
 }

@@ -11,6 +11,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.springreport.entity.doctpl.DocTpl;
 import com.springreport.entity.doctplsettings.DocTplSettings;
+import com.springreport.entity.reporttype.ReportType;
 import com.springreport.base.BaseEntity;
 import com.springreport.base.PageEntity;
 import com.springreport.base.UserInfoDto;
@@ -18,6 +19,7 @@ import com.springreport.dto.doctpl.DocDto;
 import com.springreport.dto.doctpl.DocTableDto;
 import com.springreport.dto.doctpl.DocTplDto;
 import com.springreport.dto.doctpl.DocTplSettingsDto;
+import com.springreport.dto.doctpl.DocTplTreeDto;
 import com.springreport.dto.reporttpl.MesGenerateReportDto;
 
  /**  
@@ -36,6 +38,8 @@ public interface IDocTplService extends IService<DocTpl> {
 	* @throws 
 	*/ 
 	PageEntity tablePagingQuery(DocTpl model);
+	
+	List<DocTplTreeDto> getChildren(DocTpl model);
 
 	/**
 	*<p>Title: getDetail</p>

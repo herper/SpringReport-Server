@@ -1,6 +1,7 @@
 package com.springreport.util;
 
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
@@ -36,9 +37,11 @@ import org.apache.poi.xddf.usermodel.chart.XDDFNumericalDataSource;
 import org.apache.poi.xddf.usermodel.chart.XDDFPieChartData;
 import org.apache.poi.xddf.usermodel.chart.XDDFValueAxis;
 import org.apache.poi.xwpf.model.XWPFHeaderFooterPolicy;
+import org.apache.poi.xwpf.usermodel.BreakType;
 import org.apache.poi.xwpf.usermodel.LineSpacingRule;
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
 import org.apache.poi.xwpf.usermodel.TableRowAlign;
+import org.apache.poi.xwpf.usermodel.TextAlignment;
 import org.apache.poi.xwpf.usermodel.UnderlinePatterns;
 import org.apache.poi.xwpf.usermodel.VerticalAlign;
 import org.apache.poi.xwpf.usermodel.XWPFAbstractNum;
@@ -65,21 +68,26 @@ import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTP;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPBdr;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPrGeneral;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPageMar;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPageSz;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSectPr;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSpacing;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTString;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTStyle;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTbl;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTblBorders;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTblGrid;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTblGridCol;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTblLayoutType;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTblPr;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTText;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.STBorder;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.STLineSpacingRule;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.STNumberFormat;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.STPageOrientation;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.STStyleType;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.STTblLayoutType;
+import org.springframework.beans.BeanUtils;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
@@ -89,6 +97,8 @@ import com.deepoove.poi.util.TableTools;
 import com.springreport.base.DocChartSettingDto;
 import com.springreport.enums.TitleLevelEnum;
 import com.springreport.enums.YesNoEnum;
+import com.springreport.excel2pdf.BarCodeUtil;
+import com.springreport.excel2pdf.QRCodeUtil;
 
 public class WordUtil {
 
@@ -160,7 +170,25 @@ public class WordUtil {
             pageSize.setH(BigInteger.valueOf(h));
             pageSize.setOrient(STPageOrientation.PORTRAIT);
         }
-        
+    }
+    
+    public static void setPaperMargins(XWPFDocument document,JSONArray margins) {
+    	if(ListUtil.isNotEmpty(margins)) {
+    		// 获取CTSectPr，如果没有则创建
+            CTSectPr sectPr = document.getDocument().getBody().addNewSectPr();
+            CTPageMar pageMar = sectPr.addNewPgMar();
+     
+            // 设置上页边距为500 (Twips, 1 Twip = 1/20 点)
+            pageMar.setTop(BigInteger.valueOf((long) (margins.getLongValue(0)*14.4)));
+            // 设置下页边距为500 (Twips)
+            pageMar.setBottom(BigInteger.valueOf((long) (margins.getLongValue(2)*14.4)));
+            // 设置左页边距为720 (Twips)
+            pageMar.setLeft(BigInteger.valueOf((long) (margins.getLongValue(3)*14.4)));
+            // 设置右页边距为720 (Twips)
+            pageMar.setRight(BigInteger.valueOf((long) (margins.getLongValue(1)*14.4)));
+    	}
+    	
+ 
     }
     
     /**  
@@ -190,7 +218,7 @@ public class WordUtil {
     	JSONArray valueList = content.getJSONArray("valueList");
     	if(ListUtil.isNotEmpty(valueList)) {
     		for (int i = 0; i < valueList.size(); i++) {
-    			addParagraph(paragraph,valueList.getJSONObject(i),headStyle);
+    			addParagraph(paragraph,valueList.getJSONObject(i),headStyle,false);
 			}
     	}
     	
@@ -204,9 +232,9 @@ public class WordUtil {
      * @param content void
      * @date 2024-05-04 08:48:31 
      */ 
-    public static void addParagraph(XWPFParagraph paragraph,JSONObject content,String titleStyle) {
+    public static void addParagraph(XWPFParagraph paragraph,JSONObject content,String titleStyle,boolean ignoreStartn) {
     	XWPFRun run = paragraph.createRun();
-    	setRunText(run,content,"text");
+    	setRunText(run,content,"text",ignoreStartn);
     	String rowFlex = content.getString("rowFlex");//对齐方式
     	Float rowMargin = content.getFloat("rowMargin");//行间距
     	if(StringUtil.isNotEmpty(rowFlex)) {
@@ -231,7 +259,7 @@ public class WordUtil {
     		paragraph.setAlignment(ParagraphAlignment.LEFT);
     	}
     	if(rowMargin != null) {
-    		paragraph.setSpacingBetween(rowMargin,LineSpacingRule.AUTO);
+    		setSingleLineSpacing(paragraph,rowMargin);
     	}
     	if(StringUtil.isNotEmpty(titleStyle)) {
     		paragraph.setStyle(titleStyle);
@@ -239,7 +267,21 @@ public class WordUtil {
     	
     }
     
-    private static void setRunText(XWPFRun run,JSONObject content,String type) {
+    public static void setSingleLineSpacing(XWPFParagraph paragraph,Float rowMargin) {
+        CTP ctp = paragraph.getCTP();
+        CTPPr ppr = ctp.isSetPPr() ? ctp.getPPr() : ctp.addNewPPr();
+        CTSpacing spacing = ppr.isSetSpacing()? ppr.getSpacing() : ppr.addNewSpacing();
+        spacing.setAfter(BigInteger.valueOf(0));
+        spacing.setBefore(BigInteger.valueOf(0));
+        //注意设置行距类型为 EXACT
+        spacing.setLineRule(STLineSpacingRule.EXACT);
+        //1磅数是20
+        spacing.setLine(BigInteger.valueOf((long) (rowMargin*350)));
+    }
+
+
+    
+    private static void setRunText(XWPFRun run,JSONObject content,String type,boolean ignoreStartn) {
     	String value = content.getString("value");//内容
     	String font = content.getString("font");//字体
      	Double fontSize = content.getDouble("size");//字体大小
@@ -249,20 +291,31 @@ public class WordUtil {
     	String highlight = content.getString("highlight");//高亮
     	Boolean underline = content.getBoolean("underline");//是否下划线
     	Boolean strikeout = content.getBoolean("strikeout");//是否删除线
+    	if(ignoreStartn) {
+    		if(StringUtil.isNotEmpty(value) && value.startsWith("\n")) {
+    			value = value.replaceFirst("\n", "");
+    		}
+    	}
     	if(value.contains("\n")) {
     		if("\n".equals(value)) {
     			run.setText("");
     		}else {
-    			String[] textes = value.split("\n");
+    			String[] textes = (value+" ").split("\n");
     			for (int i = 0; i < textes.length; i++) {
+    				if(i == textes.length - 1) {
+    					int lastIndex = textes[i].lastIndexOf(" ");
+    					if (lastIndex != -1) {
+    						textes[i] = textes[i].substring(0, lastIndex);
+    					}
+    				}
     				run.setText(textes[i]);
     				if(i != textes.length - 1) {
     					run.addBreak();	
     				}
     			}
-    			if(value.endsWith("\n")) {
-        			run.addBreak();	
-        		}
+//    			if(value.endsWith("\n")) {
+//        			run.addBreak();	
+//        		}
     		}
     		
     	}else {
@@ -368,9 +421,10 @@ public class WordUtil {
      * @Description: 添加表格
      * @author caiyang
      * @param doc void
+     * @throws Exception 
      * @date 2024-05-05 07:50:03 
      */ 
-    public static void addTable(XWPFDocument doc,JSONObject tableData) {
+    public static int addTable(XWPFDocument doc,JSONObject tableData,JSONObject docTplChartsObj,JSONObject docTplCodesObj,Map<String, Object> dynamicData,boolean isTemplate,int abstractNumID) throws Exception {
     	int rows = 1;//行数
     	int cols = 1;//列数
     	JSONArray trList = tableData.getJSONArray("trList");
@@ -379,6 +433,19 @@ public class WordUtil {
     	cols = colgroup.size();
     	String rowFlex = tableData.getString("rowFlex");
     	XWPFTable xwpfTable = doc.createTable(rows,cols);
+    	String borderType = tableData.getString("borderType");
+    	if("empty".equals(borderType)) {
+    		//无边框设置
+    		CTTblPr tblPr = xwpfTable.getCTTbl().getTblPr();
+        	if (tblPr == null) tblPr = xwpfTable.getCTTbl().addNewTblPr();
+        	CTTblBorders tblBorders = tblPr.addNewTblBorders();
+        	tblBorders.addNewTop().setVal(STBorder.NONE);
+        	tblBorders.addNewLeft().setVal(STBorder.NONE);
+        	tblBorders.addNewBottom().setVal(STBorder.NONE);
+        	tblBorders.addNewRight().setVal(STBorder.NONE);
+        	tblBorders.addNewInsideH().setVal(STBorder.NONE);
+        	tblBorders.addNewInsideV().setVal(STBorder.NONE);
+    	}
     	if(StringUtil.isNotEmpty(rowFlex)) {
     		switch (rowFlex) {
 			case "left":
@@ -397,27 +464,7 @@ public class WordUtil {
     	}
     	CTTbl ttbl = xwpfTable.getCTTbl(); 
 	    CTTblGrid tblGrid = ttbl.addNewTblGrid();
-    	for (int i = 0; i < cols; i++) {
-    		CTTblGridCol gridCol = tblGrid.addNewGridCol();
-    		gridCol.setW(new BigInteger(String.valueOf(colgroup.getJSONObject(i).getBigDecimal("width").intValue()*16)));  
-    		for (int j = 0; j < rows; j++) {
-    			xwpfTable.getRow(j).getCell(i).setWidth(String.valueOf(colgroup.getJSONObject(i).getBigDecimal("width").intValue()*16));
-			}
-		}
-    	for (int i = 0; i < rows; i++) {
-    		xwpfTable.getRow(i).setHeight(42*15);
-//    		if(i == 0) {
-//    			xwpfTable.getRow(i).setHeight(42*15);
-//    		}else {
-//    			int height = trList.getJSONObject(i).getIntValue("height");
-//        		float multiple = height/42;
-//        		if(multiple > 5) {
-//        			xwpfTable.getRow(i).setHeight(height*15);
-//        		}else {
-//        			xwpfTable.getRow(i).setHeight(42*15);
-//        		}	
-//    		}
-		}
+    	
     	setTableWidthFixed(xwpfTable,true);
     	JSONObject mergeObj = new JSONObject();
     	mergeObj.put("isMerge", true);
@@ -457,6 +504,7 @@ public class WordUtil {
 				}
 			}
 		}
+    	Map<Integer, Boolean> isDynamicRow = new HashMap<>();
     	for (int i = 0; i < trList.size(); i++) {
     		JSONArray tdList = trList.getJSONObject(i).getJSONArray("tdList");
     		for (int j = 0; j < tdList.size(); j++) {
@@ -465,10 +513,40 @@ public class WordUtil {
 				if(isMerge) {
 					continue;
 				}else {
-					setCellValue(xwpfTable.getRow(i).getCell(j),cellInfo);
+					abstractNumID = setCellValue(xwpfTable.getRow(i).getCell(j),cellInfo,docTplChartsObj,docTplCodesObj,dynamicData,doc,isTemplate,abstractNumID);
+				}
+				if(!isDynamicRow.containsKey(i)) {
+					String plainText = getCellPlainText(cellInfo);
+					if(StringUtil.isNotEmpty(plainText)) {
+						if((plainText.contains("{{") && plainText.contains("}}")) || (plainText.contains("[") && plainText.contains("]"))) {
+							isDynamicRow.put(i, true);
+						}
+					}
 				}
     		}
     	}
+    	for (int i = 0; i < cols; i++) {
+    		CTTblGridCol gridCol = tblGrid.addNewGridCol();
+    		gridCol.setW(new BigInteger(String.valueOf(colgroup.getJSONObject(i).getBigDecimal("width").intValue()*16)));  
+    		for (int j = 0; j < rows; j++) {
+    			xwpfTable.getRow(j).getCell(i).setWidth(String.valueOf(colgroup.getJSONObject(i).getBigDecimal("width").intValue()*16));
+			}
+		}
+    	for (int i = 0; i < rows; i++) {
+    		int height = trList.getJSONObject(i).getIntValue("height");
+    		if(isDynamicRow.containsKey(i)) {
+            	float multiple = height/42;
+            	xwpfTable.getRow(i).setHeight(42*15);
+//            	if(multiple > 6) {
+//            		xwpfTable.getRow(i).setHeight(height*15);
+//            	}else {
+//            		xwpfTable.getRow(i).setHeight(42*15);
+//            	}
+            	xwpfTable.getRow(i).setHeight(42*15);
+    		}else {
+    			xwpfTable.getRow(i).setHeight(height*15);
+    		}
+		}
     	for (int i = 0; i < trList.size(); i++) {
 			JSONArray tdList = trList.getJSONObject(i).getJSONArray("tdList");
 			for (int j = 0; j < tdList.size(); j++) {
@@ -504,6 +582,20 @@ public class WordUtil {
 				}
     		}
     	}
+    	return abstractNumID;
+    }
+    
+    public static String getCellPlainText(JSONObject cellInfo) {
+    	StringBuffer sb = new StringBuffer();
+    	JSONArray values = cellInfo.getJSONArray("value");
+    	if(ListUtil.isNotEmpty(values)) {
+    		for (int i = 0; i < values.size(); i++) {
+    			JSONObject content = values.getJSONObject(i);
+            	String value = content.getString("value");//内容
+            	sb.append(value);
+			}
+    	}
+    	return sb.toString();
     }
     
 	/**
@@ -513,149 +605,108 @@ public class WordUtil {
         CTTblPr tblPr = table.getCTTbl().getTblPr();
         CTTblLayoutType tblLayout = tblPr.isSetTblLayout() ? tblPr.getTblLayout() : tblPr.addNewTblLayout();
         if(isFixed) {
-        	tblLayout.setType(STTblLayoutType.FIXED);
+        	tblLayout.setType(STTblLayoutType.AUTOFIT);
         }
     }
     
-    private static void setCellValue(XWPFTableCell cell,JSONObject cellInfo) {
+    private static int setCellValue(XWPFTableCell cell,JSONObject cellInfo,JSONObject docTplChartsObj,JSONObject docTplCodesObj,Map<String, Object> dynamicData,XWPFDocument doc,boolean isTemplate,int abstractNumID) throws Exception {
     	if(cell == null) {
-    		return;
+    		return abstractNumID;
+    	}
+    	String backgroundColor = cellInfo.getString("backgroundColor");
+    	if(StringUtil.isNotEmpty(backgroundColor)) {
+    		cell.setColor(backgroundColor.replaceFirst("#", ""));
     	}
     	JSONArray values = cellInfo.getJSONArray("value");
     	String verticalAlign = cellInfo.getString("verticalAlign");
     	if(ListUtil.isNotEmpty(values)) {
-    		CTP ctp = CTP.Factory.newInstance();
-            XWPFParagraph paragraph = new XWPFParagraph(ctp, cell);
-            String alignment = "";
+            XWPFParagraph paragraph = null;
             Float pRowMargin = 1f;
+            String lastType = "";
             for (int i = 0; i < values.size(); i++) {
             	JSONObject content = values.getJSONObject(i);
-            	String value = content.getString("value");//内容
-            	String type = content.getString("type");
-            	String font = content.getString("font");//字体
-            	Double fontSize = content.getDouble("size");//字体大小
-            	Boolean bold = content.getBoolean("bold");//是否加粗
-            	String color = content.getString("color");//字体颜色
-            	Boolean italic = content.getBoolean("italic");//是否斜体
-            	String highlight = content.getString("highlight");//高亮
-            	Boolean underline = content.getBoolean("underline");//是否下划线
-            	Boolean strikeout = content.getBoolean("strikeout");//是否删除线
-            	String rowFlex = content.getString("rowFlex");//对齐方式
-            	Float rowMargin = content.getFloat("rowMargin");//行间距
-            	XWPFRun run = paragraph.createRun();
-            	if("tab".equals(type)) {
-            		addTab(paragraph,run);
-            	}else {
-            		if(value.contains("\n")) {
-                		if("\n".equals(value)) {
-                			run.addBreak();
-                		}else {
-                			String[] textes = value.split("\n");
-                			for (int t = 0; t < textes.length; t++) {
-                				run.setText(textes[t]);
-                				run.addBreak();	
-                			}
-                		}
-                	}else {
-                		run.setText(value);
-                	}
-            	}
-            	if(StringUtil.isNotEmpty(font)) {
-            		run.setFontFamily(font);
-            	}else {
-            		run.setFontFamily("微软雅黑");
-            	}
-            	if(fontSize != null) {
-            		run.setFontSize(fontSize/1.33445);
-            	}else {
-            		run.setFontSize(16/1.33445);
-            	}
-            	if(bold != null) {
-            		run.setBold(bold);
-            	}
-            	if(StringUtil.isNotEmpty(color)) {
-            		if(color.startsWith("#")) {
-            			run.setColor(color.replaceAll("#", ""));
-            		}else if(color.startsWith("rgb")) {
-            			try {
-        					int[] rgbs = StringUtil.rgbStringToRgb(color);
-        					color = StringUtil.rgb2Hex(rgbs[0], rgbs[1], rgbs[2]);
-        					run.setColor(color);
-        				} catch (Exception e) {
-        					
-        				}
-            		}
-            		
-            	}
-            	if(italic != null) {
-            		run.setItalic(italic);
-            	}
-            	if(StringUtil.isNotEmpty(highlight)) {
-            		run.setTextHighlightColor(getHighlightName(highlight));
-            	}
-            	if(underline != null) {
-            		JSONObject textDecoration = content.getJSONObject("textDecoration");
-            		if(textDecoration == null) {
-            			run.setUnderline(UnderlinePatterns.SINGLE);
-            		}else {
-            			String style = textDecoration.getString("style");
-            			switch (style) {
-        				case "solid":
-        					run.setUnderline(UnderlinePatterns.SINGLE);
-        					break;
-        				case "double":
-        					run.setUnderline(UnderlinePatterns.DOUBLE);
-        					break;
-        				case "dashed":
-        					run.setUnderline(UnderlinePatterns.DASH);
-        					break;
-        				case "dotted":
-        					run.setUnderline(UnderlinePatterns.DOT_DASH);
-        					break;
-        				case "wavy":
-        					run.setUnderline(UnderlinePatterns.WAVE);
-        					break;
-        				default:
-        					run.setUnderline(UnderlinePatterns.NONE);
-        					break;
-        				}
-            		}
-            	}else {
-            		run.setUnderline(UnderlinePatterns.NONE);
-            	}
-            	if(strikeout != null) {
-            		run.setStrikeThrough(strikeout);
-            	}
-            	if(StringUtil.isNotEmpty(rowFlex)) {
-            		alignment = rowFlex;
-            	}
-            	if(rowMargin != null) {
-            		pRowMargin = rowMargin;
-            	}
-			}
-            if(StringUtil.isNotEmpty(alignment)) {
-        		switch (alignment) {
-    			case "left":
-    				paragraph.setAlignment(ParagraphAlignment.LEFT);
-    				break;
-    			case "center":
-    				paragraph.setAlignment(ParagraphAlignment.CENTER);
-    				break;
-    			case "right":
-    				paragraph.setAlignment(ParagraphAlignment.RIGHT);
-    				break;
-    			case "alignment":
-    				paragraph.setAlignment(ParagraphAlignment.BOTH);
-    				break;
-    			default:
-    				paragraph.setAlignment(ParagraphAlignment.LEFT);
-    				break;
-    			}
+            	String type = content.getString("type") == null?"":content.getString("type");
+            	switch (type) {
+				case "":
+					if(content.getString("value").startsWith("\n") || 
+							(!type.equals(lastType) && !"tab".equals(lastType) 
+									&& !"superscript".equals(lastType) 
+									&& !"subscript".equals(lastType)
+									&& !"separator".equals(lastType)
+									&& !"hyperlink".equals(lastType))) {
+						content.put("value", content.getString("value").replaceFirst("\n", ""));
+						if(i == 0) {
+							paragraph = cell.getParagraphs().get(0);
+						}else {
+							paragraph = cell.addParagraph();
+						}
+					}
+					if("separator".equals(lastType)) {
+						String value = content.getString("value");
+						if(StringUtil.isNotEmpty(value) && value.startsWith("\n")) {
+							content.put("value", value.replaceFirst("\n", ""));
+						}
+					}
+					if(paragraph == null) {
+						if(i == 0) {
+							paragraph = cell.getParagraphs().get(0);
+						}else {
+							paragraph = cell.addParagraph();
+						}
+					}
+					WordUtil.addParagraph(paragraph,content, null,false);
+					break;
+				case "superscript":
+					if(paragraph == null) {
+						if(i == 0) {
+							paragraph = cell.getParagraphs().get(0);
+						}else {
+							paragraph = cell.addParagraph();
+						}
+					}
+					WordUtil.addSubSupScript(paragraph, content, "sup");
+					break;
+				case "subscript":
+					if(paragraph == null) {
+						if(i == 0) {
+							paragraph = cell.getParagraphs().get(0);
+						}else {
+							paragraph = cell.addParagraph();
+						}
+					}
+					WordUtil.addSubSupScript(paragraph, content, "sub");
+					break;
+				case "hyperlink":
+					if(paragraph == null) {
+						if(i == 0) {
+							paragraph = cell.getParagraphs().get(0);
+						}else {
+							paragraph = cell.addParagraph();
+						}
+					}
+					WordUtil.addHyperlink(paragraph, content);
+					break;
+				case "list":
+					abstractNumID = WordUtil.addCellList(doc, content, abstractNumID, cell);
+					break;
+				case "image":
+					if(paragraph == null) {
+						if(i == 0) {
+							paragraph = cell.getParagraphs().get(0);
+						}else {
+							paragraph = cell.addParagraph();
+						}
+					}
+					WordUtil.addImage(paragraph, content);
+					break;
+				default:
+					break;
+				}
+            	lastType = type;
         	}
-            if(pRowMargin != null) {
+            if(pRowMargin != null && paragraph != null) {
             	paragraph.setSpacingBetween(pRowMargin,LineSpacingRule.AUTO);
         	}
-            cell.setParagraph(paragraph);
             if(StringUtil.isNotEmpty(verticalAlign)) {
             	switch (verticalAlign) {
 				case "top":
@@ -671,8 +722,8 @@ public class WordUtil {
 					break;
 				}
             }
-            
     	}
+    	return abstractNumID;
     }
     
     /**  
@@ -686,7 +737,7 @@ public class WordUtil {
      */ 
     public static void addSubSupScript(XWPFParagraph paragraph,JSONObject content,String type) {
     	XWPFRun run = paragraph.createRun();
-    	setRunText(run,content,type);
+    	setRunText(run,content,type,false);
     }
     
     /**  
@@ -733,6 +784,25 @@ public class WordUtil {
         ct.setColor("auto");
     }
     
+    public static void addHyperlink(XWPFParagraph paragraph,JSONObject content) {
+    	JSONArray valueList = content.getJSONArray("valueList");
+    	String url = content.getString("url");
+    	if(ListUtil.isNotEmpty(valueList)) {
+    		XWPFRun run = null;
+    		for (int i = 0; i < valueList.size(); i++) {
+    			JSONObject valueObj = valueList.getJSONObject(i);
+    			String value = valueObj.getString("value");
+    			run = paragraph.createHyperlinkRun(url);
+    			valueObj.put("value", value);
+    			setRunText(run,valueObj,"text",false);
+    		}
+    	}
+    }
+    
+    public static void addPageBreak(XWPFParagraph paragraph) {
+    	paragraph.createRun().addBreak(BreakType.PAGE);
+    }
+    
     /**  
      * @MethodName: addList
      * @Description: 添加列表
@@ -741,11 +811,12 @@ public class WordUtil {
      * @param content void
      * @date 2024-05-06 01:36:56 
      */ 
-    public static void addList(XWPFDocument document,JSONObject content) {
+    public static int addList(XWPFDocument document,JSONObject content,int abstractNumID) {
     	String listStyle = content.getString("listStyle");
     	JSONArray valueList = content.getJSONArray("valueList");
     	if(ListUtil.isNotEmpty(valueList)) {
-    		BigInteger numID = getNewDecimalNumberingId(document, BigInteger.valueOf(IdWorker.getId()),listStyle);
+    		BigInteger numID = getNewDecimalNumberingId(document, BigInteger.valueOf(abstractNumID),listStyle);
+    		abstractNumID = abstractNumID + 1;
     		XWPFParagraph paragraph = null;
 //    		paragraph.setNumID(numID);
     		XWPFRun run = null;
@@ -764,25 +835,108 @@ public class WordUtil {
 					type = "text";
 					break;
 				}
-				String[] values = value.split("\n");
-				for (int j = 0; j < values.length; j++) {
-					if(StringUtil.isNotEmpty(values[j])) {
-						if(paragraph == null) {
-							paragraph = document.createParagraph();
-							paragraph.setNumID(numID);
-							paragraph.setNumILvl(BigInteger.valueOf(0));
-						}else if(j != 0) {
-							paragraph = document.createParagraph();
-							paragraph.setNumID(numID);
-							paragraph.setNumILvl(BigInteger.valueOf(0));
+				if("\n".equals(value)) {
+					if(paragraph == null) {
+						paragraph = document.createParagraph();
+						paragraph.setNumID(numID);
+						paragraph.setNumILvl(BigInteger.valueOf(0));
+					}else {
+						paragraph = document.createParagraph();
+						paragraph.setNumID(numID);
+						paragraph.setNumILvl(BigInteger.valueOf(0));
+					}
+					run = paragraph.createRun();  
+					valueObj.put("value", value);
+					setRunText(run,valueObj,type,false);
+				}else {
+					String[] values = value.split("\n");
+					for (int j = 0; j < values.length; j++) {
+						if(StringUtil.isNotEmpty(values[j])) {
+							if(paragraph == null) {
+								paragraph = document.createParagraph();
+								paragraph.setNumID(numID);
+								paragraph.setNumILvl(BigInteger.valueOf(0));
+							}else if(j != 0) {
+								paragraph = document.createParagraph();
+								paragraph.setNumID(numID);
+								paragraph.setNumILvl(BigInteger.valueOf(0));
+							}
+							run = paragraph.createRun();  
+							valueObj.put("value", values[j]);
+							setRunText(run,valueObj,type,false);
 						}
-						run = paragraph.createRun();  
-						valueObj.put("value", values[j]);
-						setRunText(run,valueObj,type);
 					}
 				}
+				
 			}
     	}
+    	return abstractNumID;
+    }
+    
+    /**  
+     * @MethodName: addList
+     * @Description: 添加列表
+     * @author caiyang
+     * @param paragraph
+     * @param content void
+     * @date 2024-05-06 01:36:56 
+     */ 
+    public static int addCellList(XWPFDocument document,JSONObject content,int abstractNumID,XWPFTableCell cell) {
+    	String listStyle = content.getString("listStyle");
+    	JSONArray valueList = content.getJSONArray("valueList");
+    	if(ListUtil.isNotEmpty(valueList)) {
+    		BigInteger numID = getNewDecimalNumberingId(document, BigInteger.valueOf(abstractNumID),listStyle);
+    		abstractNumID = abstractNumID + 1;
+    		XWPFParagraph paragraph = null;
+//    		paragraph.setNumID(numID);
+    		XWPFRun run = null;
+    		for (int i = 0; i < valueList.size(); i++) {
+    			JSONObject valueObj = valueList.getJSONObject(i);
+				String value = valueObj.getString("value");
+				String type = valueObj.getString("type") == null?"":valueObj.getString("type");
+				switch (type) {
+				case "superscript":
+					type = "sup";
+					break;
+				case "subscript":
+					type = "sub";
+					break;
+				default:
+					type = "text";
+					break;
+				}
+				if("\n".equals(value)) {
+					if(ListUtil.isEmpty(cell.getParagraphs().get(0).getRuns())) {
+						paragraph = cell.getParagraphs().get(0);
+					}else {
+						paragraph = cell.addParagraph();
+					}
+					paragraph.setNumID(numID);
+					paragraph.setNumILvl(BigInteger.valueOf(0));
+					run = paragraph.createRun();  
+					valueObj.put("value", value);
+					setRunText(run,valueObj,type,false);
+				}else {
+					String[] values = value.split("\n");
+					for (int j = 0; j < values.length; j++) {
+						if(StringUtil.isNotEmpty(values[j])) {
+							if(ListUtil.isEmpty(cell.getParagraphs().get(0).getRuns())) {
+								paragraph = cell.getParagraphs().get(0);
+							}else {
+								paragraph = cell.addParagraph();
+							}
+							paragraph.setNumID(numID);
+							paragraph.setNumILvl(BigInteger.valueOf(0));
+							run = paragraph.createRun();  
+							valueObj.put("value", values[j]);
+							setRunText(run,valueObj,type,false);
+						}
+					}
+				}
+				
+			}
+    	}
+    	return abstractNumID;
     }
     
     /**  
@@ -800,6 +954,40 @@ public class WordUtil {
     		URL url = new URL(content.getString("value"));
     		in = url.openStream();
     		image = ImageIO.read(url);
+    		XWPFRun run = paragraph.createRun();
+    		run.addPicture(in, org.apache.poi.xwpf.usermodel.Document.PICTURE_TYPE_PNG, "",
+    		Units.pixelToEMU(content.getIntValue("width")), Units.pixelToEMU(content.getIntValue("height")));
+    		String rowFlex = content.getString("rowFlex");//对齐方式
+			if (StringUtil.isNotEmpty(rowFlex)) {
+				switch (rowFlex) {
+				case "left":
+					paragraph.setAlignment(ParagraphAlignment.LEFT);
+					break;
+				case "center":
+					paragraph.setAlignment(ParagraphAlignment.CENTER);
+					break;
+				case "right":
+					paragraph.setAlignment(ParagraphAlignment.RIGHT);
+					break;
+				case "alignment":
+					paragraph.setAlignment(ParagraphAlignment.BOTH);
+					break;
+				default:
+					paragraph.setAlignment(ParagraphAlignment.LEFT);
+					break;
+				}
+			} else {
+				paragraph.setAlignment(ParagraphAlignment.LEFT);
+			}
+		} catch (Exception e) {
+			// TODO: handle exception
+		}
+    }
+    
+    public static void addImage(XWPFParagraph paragraph,JSONObject content,byte[] codeByte) {
+    	InputStream in;
+    	try {
+    		in = new ByteArrayInputStream(codeByte);
     		XWPFRun run = paragraph.createRun();
     		run.addPicture(in, org.apache.poi.xwpf.usermodel.Document.PICTURE_TYPE_PNG, "",
     		Units.pixelToEMU(content.getIntValue("width")), Units.pixelToEMU(content.getIntValue("height")));
@@ -991,7 +1179,7 @@ public class WordUtil {
             };
         }else {
         	datas = (List<Map<String, Object>>) dynamicData.get(docChartSettingDto.getDatasetName());
-        	String categoryField = JSON.parseArray(docChartSettingDto.getCategoryField()).getString(0);
+        	String categoryField = docChartSettingDto.getCategoryField();
         	List<String> categories = new ArrayList<>();
         	for (int i = 0; i < datas.size(); i++) {
         		Object obj = datas.get(i).get(categoryField);
@@ -1010,7 +1198,7 @@ public class WordUtil {
                     2.59, 3.5
             };
         }else {
-        	String valueField = docChartSettingDto.getValueField();
+        	String valueField = JSON.parseArray(docChartSettingDto.getValueField()).getString(0);
         	List<Double> values = new ArrayList<>();
         	for (int i = 0; i < datas.size(); i++) {
         		Object obj = datas.get(i).get(valueField);
@@ -1206,20 +1394,17 @@ public class WordUtil {
     private static Map<String, Object> processDatas(Map<String, Object> dynamicData,DocChartSettingDto docChartSettingDto){
     	Map<String, Object> result = new HashMap<String, Object>();
     	List<Map<String, Object>> datas = (List<Map<String, Object>>) dynamicData.get(docChartSettingDto.getDatasetName());
-    	List<List<Map<String, Object>>> bindDatas = new ArrayList<>();
-    	bindDatas.add(datas);
-    	bindDatas = groupDatas(bindDatas, docChartSettingDto);
+    	List<JSONArray> groupDatas = groupDatas(datas, docChartSettingDto);
     	List<String> categories = new ArrayList<>();//x轴标签数据
     	List<String> seriesData = new ArrayList<>();//分类数据
         List<XDDFNumericalDataSource<Double>> valueDS = new ArrayList<>();
         Map<Integer, List<Double>> valuesMap = new LinkedHashMap<>();
-        JSONArray properties = JSON.parseArray(docChartSettingDto.getCategoryField());
-    	if(ListUtil.isNotEmpty(bindDatas)) {
-    		for (int i = 0; i < bindDatas.size(); i++) {
-    			categories.add(String.valueOf(bindDatas.get(i).get(0).get(properties.get(0))));
-    			for (int j = 0; j < bindDatas.get(i).size(); j++) {
-    				if(i == 0 && StringUtil.isNotEmpty(docChartSettingDto.getSeriesField())) {
-    					seriesData.add(String.valueOf(bindDatas.get(i).get(j).get(docChartSettingDto.getSeriesField())));
+    	if(ListUtil.isNotEmpty(groupDatas)) {
+    		for (int i = 0; i < groupDatas.size(); i++) {
+    			categories.add(groupDatas.get(i).getJSONObject(0).getString("type"));
+    			for (int j = 0; j < groupDatas.get(i).size(); j++) {
+    				if(i == 0) {
+    					seriesData.add(groupDatas.get(i).getJSONObject(j).getString("seriesField"));
     				}
     				List<Double> values = null;
 					if(!valuesMap.containsKey(j)) {
@@ -1228,7 +1413,7 @@ public class WordUtil {
 					}else {
 						values = valuesMap.get(j);
 					}
-					values.add(Double.parseDouble(String.valueOf(bindDatas.get(i).get(j).get(docChartSettingDto.getValueField()))));
+					values.add(groupDatas.get(i).getJSONObject(j).getDoubleValue("value"));
 				}
     		}
     	}
@@ -1242,36 +1427,58 @@ public class WordUtil {
     	return result;
     }
     
-    private static List<List<Map<String, Object>>> groupDatas(List<List<Map<String, Object>>> bindDatas,DocChartSettingDto docChartSettingDto){
-    	List<List<Map<String, Object>>> datas = null;
-    	JSONArray properties = JSON.parseArray(docChartSettingDto.getCategoryField());
-    	if(properties.size() == 1) {
-    		properties.add("SpringReport");
-    	}
-    	for (int t = 0; t < properties.size()-1; t++) {
-    		datas = new ArrayList<List<Map<String,Object>>>();
-    		for (int i = 0; i < bindDatas.size(); i++) {
-    			Map<String, List<Map<String, Object>>> dataMap = new LinkedHashMap<String, List<Map<String, Object>>>();
-    			for (int j = 0; j < bindDatas.get(i).size(); j++) {
-    				Map<String, Object> map = bindDatas.get(i).get(j);
-    				String value = String.valueOf(map.get(properties.get(t)));
-    				List<Map<String, Object>> rowList=null;
-					if (dataMap.containsKey(value)) {
-						rowList = dataMap.get(value);
-					}else {
-						rowList = new ArrayList<Map<String,Object>>();
-						dataMap.put(value, rowList);
+    private static List<JSONArray> groupDatas(List<Map<String, Object>> datas,DocChartSettingDto docChartSettingDto){
+    	JSONArray valueField = JSON.parseArray(docChartSettingDto.getValueField());
+    	if(valueField == null) {
+			valueField = new JSONArray();
+		}
+    	JSONArray seriesField = JSON.parseArray(docChartSettingDto.getSeriesField());
+    	if(seriesField == null) {
+    		seriesField = new JSONArray();
+		}
+    	boolean flag = false;
+		if(seriesField.size()>=valueField.size()) {
+			flag = true;
+		}
+		JSONArray chartDatas = new JSONArray();
+		if(ListUtil.isNotEmpty(datas)) {
+			if(ListUtil.isNotEmpty(valueField)) {
+				for (int i = 0; i < valueField.size(); i++) {
+					for (int j = 0; j < datas.size(); j++) {
+						JSONObject chartData = new JSONObject();
+						chartData.put("value", datas.get(j).get(valueField.getString(i)));
+						chartData.put("type", datas.get(j).get(docChartSettingDto.getCategoryField()));
+						if(flag) {
+							chartData.put("seriesField", datas.get(j).get(seriesField.getString(i)));
+						}else {
+							chartData.put("seriesField", "系列"+(i+1));
+						}
+						chartDatas.add(chartData);
 					}
-					rowList.add(map);
-    			}
-    			Iterator<Entry<String, List<Map<String, Object>>>> entries = dataMap.entrySet().iterator();
-				while(entries.hasNext()){
-					datas.add(entries.next().getValue());
 				}
+			}
+		}
+		List<JSONArray> result = new ArrayList<>();
+		if(ListUtil.isNotEmpty(chartDatas)) {
+			Map<String, JSONArray> dataMap = new LinkedHashMap<>();
+    		for (int i = 0; i < chartDatas.size(); i++) {
+    			JSONArray rowList = null;
+    			JSONObject data = chartDatas.getJSONObject(i);
+    			String key = String.valueOf(data.get("type"));
+    			if(dataMap.containsKey(key)) {
+					rowList = dataMap.get(key);
+				}else {
+					rowList = new JSONArray();
+					dataMap.put(key, rowList);
+				}
+    			rowList.add(data);
     		}
-    		bindDatas = datas;
-    	}
-    	return bindDatas;
+    		Iterator<Entry<String, JSONArray>> entries = dataMap.entrySet().iterator();
+    		while(entries.hasNext()){
+    			result.add(entries.next().getValue());
+			}
+		}
+		return result;
     }
     
     private static void showCateName(CTPieSer series, boolean val) {

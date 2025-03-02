@@ -20,7 +20,7 @@ import lombok.NoArgsConstructor;
  /**  
 * @Description: doc_tpl - 
 * @author 
-* @date 2024-05-02 08:55:33
+* @date 2025-01-04 07:25:47
 * @version V1.0  
  */
 @Data
@@ -47,6 +47,10 @@ public class DocTpl extends PageEntity {
     @TableField("tpl_name")
     private String tplName;
 
+    /** param_merge - 参数是否合并 1是 2否 */
+    @TableField("param_merge")
+    private Integer paramMerge;
+
     /** creator - 创建人 */
     @TableField(value = "creator",fill = FieldFill.INSERT)
     private Long creator;
@@ -66,4 +70,12 @@ public class DocTpl extends PageEntity {
     /** del_flag - 删除标记 1未删除 2已删除 */
     @TableField("del_flag")
     private Integer delFlag;
+
+    /** report_type - 类型 */
+    @TableField("report_type")
+    private Long reportType;
+
+    /** firstpage_header_footer_show - 首页页眉页脚是否显示 1是 2否 */
+    @TableField("firstpage_header_footer_show")
+    private Integer firstpageHeaderFooterShow;
 }

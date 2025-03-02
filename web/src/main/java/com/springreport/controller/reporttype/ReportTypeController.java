@@ -69,7 +69,7 @@ public class ReportTypeController extends BaseController {
 	@RequestMapping(value = "/getDetail",method = RequestMethod.GET)
 	@MethodLog(module="ReportType",remark="获取详细信息",operateType=Constants.OPERATE_TYPE_SEARCH)
 	@Check({"id:required#主键ID"})
-	@RequiresPermissions(value = {"reportType_getDetail","reportType_update"},logical = Logical.OR)
+//	@RequiresPermissions(value = {"reportType_getDetail","reportType_update","reportTpl_update","reportTpl_getDetail","onlineTpl_update","onlineTpl_getDetai","docTpl_getDetail","docTpl_edit","screenTpl_getDetail","screenTpl_update"},logical = Logical.OR)
 	public Response getDetail(@RequestParam Long id) throws Exception
 	{
 		BaseEntity result = iReportTypeService.getDetail(id);
@@ -86,7 +86,7 @@ public class ReportTypeController extends BaseController {
 	@RequestMapping(value = "/insert",method = RequestMethod.POST)
 	@MethodLog(module="ReportType",remark="新增",operateType=Constants.OPERATE_TYPE_ADD)
 	@Check({"reportTypeName:required#报表类型名称;length#报表类型名称#50",})
-	@RequiresPermissions(value = {"reportType_insert"})
+	@RequiresPermissions(value = {"reportType_insert","screenTpl_folder","docTpl_folder","onlineTpl_folder","reportTpl_folder"},logical = Logical.OR)
 	public Response insert(@RequestBody ReportType model) throws Exception
 	{
 		BaseEntity result = iReportTypeService.insert(model);
@@ -103,7 +103,7 @@ public class ReportTypeController extends BaseController {
 	@RequestMapping(value = "/update",method = RequestMethod.POST)
 	@MethodLog(module="ReportType",remark="更新",operateType=Constants.OPERATE_TYPE_UPDATE)
 	@Check({"id:required#主键ID","reportTypeName:required#报表类型名称;length#报表类型名称#50",})
-	@RequiresPermissions(value = {"reportType_update"})
+//	@RequiresPermissions(value = {"reportType_update","reportTpl_update","onlineTpl_update","docTpl_edit","screenTpl_update"})
 	public Response update(@RequestBody ReportType model) throws Exception
 	{
 		BaseEntity result = iReportTypeService.update(model);
@@ -119,7 +119,7 @@ public class ReportTypeController extends BaseController {
 	@RequestMapping(value = "/delete",method = RequestMethod.GET)
 	@MethodLog(module="ReportType",remark="单条删除",operateType=Constants.OPERATE_TYPE_DELETE)
 	@Check({"id:required#主键ID"})
-	@RequiresPermissions(value = {"reportType_delete"})
+//	@RequiresPermissions(value = {"reportType_delete","reportTpl_delete"})
 	public Response delete(@RequestParam Long id)
 	{
 		BaseEntity result = iReportTypeService.delete(id);
@@ -132,15 +132,15 @@ public class ReportTypeController extends BaseController {
 	* @return Response 
 	* @throws 
 	*/ 
-	@RequestMapping(value = "/deletebatch",method = RequestMethod.POST)
-	@MethodLog(module="ReportType",remark="批量删除",operateType=Constants.OPERATE_TYPE_BATCHDELETE)
-	@RequiresPermissions(value = {"reportType_batchDelete"})
-	public Response deletebatch(@RequestBody List<Long> ids)
-	{
-		BaseEntity result = iReportTypeService.deleteBatch(ids);
-		return Response.success(result.getStatusMsg());
-	}
-	
+//	@RequestMapping(value = "/deletebatch",method = RequestMethod.POST)
+//	@MethodLog(module="ReportType",remark="批量删除",operateType=Constants.OPERATE_TYPE_BATCHDELETE)
+//	@RequiresPermissions(value = {"reportType_batchDelete"})
+//	public Response deletebatch(@RequestBody List<Long> ids)
+//	{
+//		BaseEntity result = iReportTypeService.deleteBatch(ids);
+//		return Response.success(result.getStatusMsg());
+//	}
+//	
 	/** 
 	* @Description: 获取报表类型
 	* @param ReportType 
@@ -149,7 +149,7 @@ public class ReportTypeController extends BaseController {
 	*/ 
 	@RequestMapping(value = "/getReportType",method = RequestMethod.POST)
 	@MethodLog(module="ReportType",remark="获取报表类型",operateType=Constants.OPERATE_TYPE_SEARCH)
-	@RequiresPermissions(value = {"reportTpl_search","viewReport_Search"},logical = Logical.OR)
+//	@RequiresPermissions(value = {"reportTpl_search","viewReport_Search"},logical = Logical.OR)
 	public Response getReportType(@RequestBody ReportType reportType) {
 		List<ReportType> result = this.iReportTypeService.getReportType(reportType);
 		return Response.success(result);
@@ -165,12 +165,12 @@ public class ReportTypeController extends BaseController {
 	 */  
 	@RequestMapping(value = "/getReportTypeTree",method = RequestMethod.POST)
 	@MethodLog(module="ReportType",remark="获取报表类型树",operateType=Constants.OPERATE_TYPE_SEARCH)
-	@RequiresPermissions(value = {"reportTpl_search","viewReport_Search"},logical = Logical.OR)
+//	@RequiresPermissions(value = {"reportTpl_search","viewReport_Search"},logical = Logical.OR)
 	public Response getReportTypeTree(@RequestBody ReportType reportType) {
 		List<TreeDto> result = new ArrayList<>();
 		TreeDto parentTreeDto = new TreeDto();
 		parentTreeDto.setId(1L);
-		parentTreeDto.setLabel("报表分类");
+		parentTreeDto.setLabel("报表目录");
 		List<TreeDto> reportTypeTrees = new ArrayList<>();
 		List<ReportType> reportTypes = this.iReportTypeService.getReportType(reportType);
 		if(!ListUtil.isEmpty(reportTypes))

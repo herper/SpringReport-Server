@@ -2,18 +2,22 @@ package com.springreport.impl.doctpl;
 
 import com.springreport.entity.doctpl.DocTpl;
 import com.springreport.entity.doctplcharts.DocTplCharts;
+import com.springreport.entity.doctplcodes.DocTplCodes;
 import com.springreport.entity.doctplsettings.DocTplSettings;
 import com.springreport.entity.reportdatasource.ReportDatasource;
 import com.springreport.entity.reporttpldataset.ReportTplDataset;
 import com.springreport.entity.reporttpldatasource.ReportTplDatasource;
+import com.springreport.entity.reporttype.ReportType;
 import com.springreport.mapper.doctpl.DocTplMapper;
 import com.springreport.api.common.ICommonService;
 import com.springreport.api.doctpl.IDocTplService;
 import com.springreport.api.doctplcharts.IDocTplChartsService;
+import com.springreport.api.doctplcodes.IDocTplCodesService;
 import com.springreport.api.doctplsettings.IDocTplSettingsService;
 import com.springreport.api.reportdatasource.IReportDatasourceService;
 import com.springreport.api.reporttpldataset.IReportTplDatasetService;
 import com.springreport.api.reporttpldatasource.IReportTplDatasourceService;
+import com.springreport.api.reporttype.IReportTypeService;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
@@ -26,33 +30,56 @@ import com.deepoove.poi.config.Configure;
 import com.deepoove.poi.config.ConfigureBuilder;
 import com.deepoove.poi.plugin.table.LoopColumnTableRenderPolicy;
 import com.deepoove.poi.plugin.table.LoopRowTableRenderPolicy;
+import com.github.pagehelper.PageHelper;
 
 import org.apache.poi.openxml4j.util.ZipSecureFile;
 import org.apache.poi.wp.usermodel.HeaderFooterType;
+import org.apache.poi.xwpf.model.XWPFHeaderFooterPolicy;
 import org.apache.poi.xwpf.usermodel.IBodyElement;
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
 import org.apache.poi.xwpf.usermodel.UnderlinePatterns;
+import org.apache.poi.xwpf.usermodel.XWPFChart;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFFooter;
 import org.apache.poi.xwpf.usermodel.XWPFHeader;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFPicture;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
-import org.apache.poi.xwpf.usermodel.XWPFStyle;
-import org.apache.poi.xwpf.usermodel.XWPFStyles;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
 import org.apache.poi.xwpf.usermodel.XWPFTableCell;
 import org.apache.poi.xwpf.usermodel.XWPFTableRow;
+import org.apache.xmlbeans.impl.xb.xmlschema.SpaceAttribute;
 import org.apache.poi.xwpf.usermodel.XWPFTableCell.XWPFVertAlign;
 import org.docx4j.fonts.IdentityPlusMapper;
 import org.docx4j.fonts.Mapper;
 import org.docx4j.fonts.PhysicalFonts;
+import org.jfree.data.category.DefaultCategoryDataset;
+import org.jfree.data.general.DefaultPieDataset;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTBarChart;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTBarSer;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTChart;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTLineChart;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTLineSer;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTNumData;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTNumVal;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTPieChart;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTPieSer;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTPlotArea;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTStrData;
+import org.openxmlformats.schemas.drawingml.x2006.chart.CTStrVal;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTBorder;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTBr;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTP;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPBdr;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPageNumber;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSectPr;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTString;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTVerticalAlignRun;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.STBrType;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.STFldCharType;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.STHdrFtr;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.STNumberFormat;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -63,15 +90,18 @@ import com.springreport.util.DateUtil;
 import com.springreport.util.FileUtil;
 import com.springreport.util.HttpClientUtil;
 import com.springreport.util.InfluxDBConnection;
+import com.springreport.util.JFreeChartUtil;
 import com.springreport.util.JdbcUtils;
 import com.springreport.util.ListUtil;
+import com.springreport.util.Md5Util;
 import com.springreport.util.MessageUtil;
 import com.springreport.util.ParamUtil;
 import com.springreport.util.ReportDataUtil;
 import com.springreport.util.StringUtil;
 import com.springreport.util.WordUtil;
 
-import com.github.pagehelper.PageHelper;
+import lombok.extern.slf4j.Slf4j;
+
 import com.springreport.base.BaseEntity;
 import com.springreport.base.DocChartSettingDto;
 import com.springreport.base.PageEntity;
@@ -86,6 +116,7 @@ import com.springreport.dto.doctpl.DocTableRowDto;
 import com.springreport.dto.doctpl.DocTextDto;
 import com.springreport.dto.doctpl.DocTplDto;
 import com.springreport.dto.doctpl.DocTplSettingsDto;
+import com.springreport.dto.doctpl.DocTplTreeDto;
 import com.springreport.dto.reporttpl.MesGenerateReportDto;
 import com.springreport.dto.reporttpldataset.ReportDatasetDto;
 
@@ -94,10 +125,7 @@ import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.math.BigInteger;
 import java.net.URLEncoder;
 import java.sql.SQLException;
@@ -107,19 +135,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 import javax.imageio.ImageIO;
 import javax.servlet.http.HttpServletResponse;
 import javax.sql.DataSource;
-
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-
 import com.springreport.enums.DatasetTypeEnum;
 import com.springreport.enums.DelFlagEnum;
 import com.springreport.enums.SqlTypeEnum;
 import com.springreport.enums.TitleLevelEnum;
 import com.springreport.enums.YesNoEnum;
+import com.springreport.excel2pdf.BarCodeUtil;
+import com.springreport.excel2pdf.QRCodeUtil;
 import com.springreport.exception.BizException;
 
  /**  
@@ -128,6 +155,7 @@ import com.springreport.exception.BizException;
 * @date 2024-05-02 08:55:33
 * @version V1.0  
  */
+@Slf4j
 @Service
 public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> implements IDocTplService {
   
@@ -150,6 +178,9 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 	@Autowired
 	private ICommonService iCommonService;
 	
+	@Autowired
+	private IDocTplCodesService iDocTplCodesService;
+	
 	@Value("${file.path}")
     private String dirPath;
 	
@@ -158,6 +189,9 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 	
 	@Value("${show.report.sql}")
 	private boolean showReportSql;
+	
+	@Autowired
+	private IReportTypeService iReportTypeService;
 	
 	private static Mapper fontMapper = null;
 	
@@ -240,7 +274,48 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		return result;
 	}
 
-
+	public List<DocTplTreeDto> getChildren(DocTpl docTpl) {
+		List<DocTplTreeDto> result = new ArrayList<>();
+		docTpl.setDelFlag(DelFlagEnum.UNDEL.getCode());
+		List<DocTplDto> tpls = this.baseMapper.getTableList(docTpl);
+		if(ListUtil.isNotEmpty(tpls)) {
+			DocTplTreeDto docTplTreeDto = null;
+			for (int i = 0; i < tpls.size(); i++) {
+				docTplTreeDto = new DocTplTreeDto();
+				if(StringUtil.isNotEmpty(tpls.get(i).getDatasourceId()))
+				{
+					String[] datasourceIds = tpls.get(i).getDatasourceId().split(",");
+					List<String> ids = Arrays.asList(datasourceIds);
+					QueryWrapper<ReportDatasource> queryWrapper = new QueryWrapper<>();
+					queryWrapper.in("id", ids);
+					List<ReportDatasource> datasources = this.iReportDatasourceService.list(queryWrapper);
+					if(!ListUtil.isEmpty(datasources))
+					{
+						String dataSourceName = "";
+						String dataSourceCode = "";
+						for (int j = 0; j < datasources.size(); j++) {
+							if(j == 0)
+							{
+								dataSourceName = dataSourceName + datasources.get(j).getName();
+								dataSourceCode = dataSourceCode + datasources.get(j).getCode();
+							}else {
+								dataSourceName = dataSourceName + "," + datasources.get(j).getName();
+								dataSourceCode = dataSourceCode + "," + datasources.get(j).getCode();
+							}
+						}
+						tpls.get(i).setDataSourceName(dataSourceName);
+						tpls.get(i).setDataSourceCode(dataSourceCode);
+					}
+				}
+				BeanUtils.copyProperties(tpls.get(i), docTplTreeDto);
+				docTplTreeDto.setIcon("iconfont icon-Word");
+				docTplTreeDto.setType("2");
+				docTplTreeDto.setHasChildren(false);
+				result.add(docTplTreeDto);
+			}
+		}
+		return result;
+	}
 	/**
 	*<p>Title: getDetail</p>
 	*<p>Description: 获取详情</p>
@@ -310,7 +385,7 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		docTplSettings.setHeader("[]");
 		docTplSettings.setFooter("[]");
 		docTplSettings.setMain("[]");
-		docTplSettings.setMargins("[]");
+		docTplSettings.setMargins("[100,120,100,120]");
 		docTplSettings.setHeight(1123);
 		docTplSettings.setWidth(794);
 		this.iDocTplSettingsService.save(docTplSettings);
@@ -434,6 +509,7 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		if (docTpl != null) {
 			result.setTplName(docTpl.getTplName());
 		}
+		result.setFirstpageHeaderFooterShow(docTpl.getFirstpageHeaderFooterShow());
 		result.setChartUrlPrefix(MessageUtil.getValue("chart.url.prefix"));
 		//获取图表信息
 		QueryWrapper<DocTplCharts> chartsWrapper = new QueryWrapper<>();
@@ -443,7 +519,13 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		if(docTplCharts == null) {
 			docTplCharts = new ArrayList<>();
 		}
-		result.setDocTplCharts(docTplCharts);;
+		result.setDocTplCharts(docTplCharts);
+		//获取条形码二维码信息
+		QueryWrapper<DocTplCodes> codesQueryWrapper = new QueryWrapper<>();
+		codesQueryWrapper.eq("tpl_id", model.getTplId());
+		codesQueryWrapper.eq("del_flag", DelFlagEnum.UNDEL.getCode());
+		List<DocTplCodes> docTplCodes = this.iDocTplCodesService.list(codesQueryWrapper);
+		result.setDocTplCodes(docTplCodes);
 		return result;
 	}
 
@@ -475,6 +557,14 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		if(ListUtil.isNotEmpty(model.getDocTplCharts())) {
 			this.iDocTplChartsService.saveBatch(model.getDocTplCharts());
 		}
+		//先删除模板中所有的条码二维码信息，再新增
+		QueryWrapper<DocTplCodes> codesWrapper = new QueryWrapper<>();
+		codesWrapper.eq("tpl_id", model.getTplId());
+		codesWrapper.eq("del_flag", DelFlagEnum.UNDEL.getCode());
+		this.iDocTplCodesService.remove(codesWrapper);
+		if(ListUtil.isNotEmpty(model.getDocTplCodes())) {
+			this.iDocTplCodesService.saveBatch(model.getDocTplCodes());
+		}
 		return result;
 	}
 	
@@ -502,7 +592,7 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 			model.setHeader("[]");
 			model.setFooter("[]");
 			model.setMain("[]");
-			model.setMain("[]");
+			model.setMargins("[]");
 			model.setWidth(794);
 			model.setHeight(1123);
 		}
@@ -511,7 +601,10 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
         String filename = URLEncoder.encode(docTpl.getTplName(), "UTF-8");
         httpServletResponse.addHeader("Content-Disposition", "attachment;filename=" +filename + ".docx");
         httpServletResponse.addHeader("filename", filename + ".docx");
-		ByteArrayOutputStream baos = this.getDocTplStream(model,null,true);
+        DocTplSettingsDto docTplSettingsDto = new DocTplSettingsDto();
+        BeanUtils.copyProperties(model, docTplSettingsDto);
+        docTplSettingsDto.setFirstpageHeaderFooterShow(docTpl.getFirstpageHeaderFooterShow());
+		ByteArrayOutputStream baos = this.getDocTplStream(docTplSettingsDto,null,true);
 		byte[] bytes = baos.toByteArray();
 		httpServletResponse.setHeader("Content-Length", String.valueOf(bytes.length));
         BufferedOutputStream bos = null;
@@ -541,17 +634,59 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		//获取模板关联的所有数据集
 		ReportTplDataset dataset = new ReportTplDataset();
 		dataset.setTplId(model.getTplId());
-		List<ReportDatasetDto> datasets = this.iReportTplDatasetService.getTplDatasets(dataset);
+		List<ReportDatasetDto> datasets = this.iReportTplDatasetService.getTplDatasets(dataset,userInfoDto);
 		Map<String, Object> data = new HashMap<>();
 		Map<String, List<String>> paramsType = new HashMap<>();//记录参数类型，vertical代表竖向列表参数，horizontal代表横向列表参数
 		List<Map<String, String>> reportSqls = new ArrayList<>();
+		Map<String, String> apiCache = new HashMap<>();//api请求返回结果缓存，同一个api多个数据集的情况下，直接使用缓存数据，防止多次请求
+		Map<String, Object> subParams = new HashMap<String, Object>();//传给子表的参数
 		if(ListUtil.isNotEmpty(datasets)) {
 			for (int i = 0; i < datasets.size(); i++) {
-				Object datasetData = this.getDatasetDatas(model, datasets.get(i), reportSqls,paramsType,userInfoDto);
+				Object datasetData = this.getDatasetDatas(model, datasets.get(i), reportSqls,paramsType,userInfoDto,apiCache,subParams);
+				String subParamAttrs = datasets.get(i).getSubParamAttrs();
+				if(StringUtil.isNotEmpty(subParamAttrs) && datasetData != null) {
+					JSONArray attrs = JSON.parseArray(subParamAttrs);
+					if(datasetData instanceof List) {
+						List<Map<String, Object>> datas = (List<Map<String, Object>>) datasetData;
+						if(ListUtil.isNotEmpty(attrs) && ListUtil.isNotEmpty(datas)) {
+							for (int t = 0; t < datas.size(); t++) {
+								for (int j = 0; j < attrs.size(); j++) {
+									if(datas.get(t).containsKey(attrs.getString(j))) {
+										JSONArray paramsArray = null;
+										if(subParams.containsKey(attrs.getString(j))) {
+											paramsArray = (JSONArray) subParams.get(attrs.getString(j));
+										}else {
+											paramsArray = new JSONArray();
+											subParams.put(attrs.getString(j), paramsArray);
+										}
+										paramsArray.add(datas.get(t).get(attrs.getString(j)));
+									}
+								}
+							}
+						}
+					}else {
+						Map<String, Object> objectData = (Map<String, Object>) datasetData;
+						if(ListUtil.isNotEmpty(attrs)) {
+							for (int j = 0; j < attrs.size(); j++) {
+								if(objectData.containsKey(attrs.getString(j))) {
+									JSONArray paramsArray = null;
+									if(subParams.containsKey(attrs.getString(j))) {
+										paramsArray = (JSONArray) subParams.get(attrs.getString(j));
+									}else {
+										paramsArray = new JSONArray();
+										subParams.put(attrs.getString(j), paramsArray);
+									}
+									paramsArray.add(objectData.get(attrs.getString(j)));
+								}
+							}
+						}
+					}
+				}
+				
 				data.put(datasets.get(i).getDatasetName(), datasetData);
 			}
 		}
-		Map<String, Object> result = this.generateDocPdf(model.getTplId(), data,paramsType,model.getFileId());
+		Map<String, Object> result = this.generateDocPdf(model.getTplId(), data,paramsType,model.getFileId(),docTpl.getFirstpageHeaderFooterShow());
 		result.put("tplName", docTpl.getTplName());
 		result.put("reportSqls", reportSqls);
 		result.put("showReportSql", showReportSql);
@@ -567,7 +702,7 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 	 * @return Map<String,String>
 	 * @date 2024-05-07 04:49:42 
 	 */ 
-	private Map<String, Object> generateDocPdf(Long tplId,Map<String, Object> data,Map<String, List<String>> paramsType,String fileId){
+	private Map<String, Object> generateDocPdf(Long tplId,Map<String, Object> data,Map<String, List<String>> paramsType,String fileId,int firstpageHeaderFooterShow){
 		Map<String, Object> result = new HashMap<String, Object>();
 		QueryWrapper<DocTplSettings> queryWrapper = new QueryWrapper<>();
 		queryWrapper.eq("tpl_id", tplId);
@@ -588,7 +723,10 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		FileOutputStream docxFileOutputStream = null;
 		FileOutputStream pdfFileOutputStream = null;
 		try {
-			baos = this.getDocTplStream(model,data,false);
+			DocTplSettingsDto tplSettingsDto = new DocTplSettingsDto();
+			BeanUtils.copyProperties(model, tplSettingsDto);
+			tplSettingsDto.setFirstpageHeaderFooterShow(firstpageHeaderFooterShow);
+			baos = this.getDocTplStream(tplSettingsDto,data,false);
 			ZipSecureFile.setMinInflateRatio(-1.0d);
 			inputStream = new ByteArrayInputStream(baos.toByteArray());
 			String date = DateUtil.getNow(DateUtil.FORMAT_LONOGRAM);
@@ -669,7 +807,7 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		return result;
 	}
 	
-	private ByteArrayOutputStream getDocTplStream(DocTplSettings model,Map<String, Object> dynamicData,boolean isTemplate) {
+	private ByteArrayOutputStream getDocTplStream(DocTplSettingsDto model,Map<String, Object> dynamicData,boolean isTemplate) {
 		ByteArrayOutputStream baos = null;
 		XWPFDocument doc = new XWPFDocument();
 		QueryWrapper<DocTplCharts> chartsWrapper = new QueryWrapper<>();
@@ -677,16 +815,30 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		chartsWrapper.eq("del_flag", DelFlagEnum.UNDEL.getCode());
 		List<DocTplCharts> docTplCharts = this.iDocTplChartsService.list(chartsWrapper);
 		Map<String, List<DocTplCharts>> docTplChartsMap = null;
+		JSONObject docTplChartsObj = null;
 		if(ListUtil.isNotEmpty(docTplCharts)) {
 			docTplChartsMap = docTplCharts.stream().collect(Collectors.groupingBy(DocTplCharts::getChartUrl));
+			docTplChartsObj = JSON.parseObject(JSON.toJSONString(docTplChartsMap));
+		}
+		QueryWrapper<DocTplCodes> codesWrapper = new QueryWrapper<>();
+		codesWrapper.eq("tpl_id", model.getTplId());
+		codesWrapper.eq("del_flag", DelFlagEnum.UNDEL.getCode());
+		List<DocTplCodes> docTplCodes = this.iDocTplCodesService.list(codesWrapper);
+		Map<String, List<DocTplCodes>> docTplCodesMap = null;
+		JSONObject docTplCodesObj = null;
+		if(ListUtil.isNotEmpty(docTplCodes)) {
+			docTplCodesMap = docTplCodes.stream().collect(Collectors.groupingBy(DocTplCodes::getCodeUrl));
+			docTplCodesObj = JSON.parseObject(JSON.toJSONString(docTplCodesMap));
 		}
 		try {
 			//添加自定义标题
-//			for (int i = 1; i <= 6; i++) {
-//				WordUtil.addCustomHeadingStyle(doc, "标题" + i, i);
-//			}
+			for (int i = 1; i <= 6; i++) {
+				WordUtil.addCustomHeadingStyle(doc, "标题" + i, i);
+			}
 			//设置纸张大小
 			WordUtil.setPaperSize(doc, model.getHeight(), model.getWidth(),model.getPaperDirection());
+			JSONArray margins = JSONArray.parseArray(model.getMargins());
+			WordUtil.setPaperMargins(doc, margins);
 			//设置纸张大小
 			WordUtil.setPaperSize(doc, model.getHeight(), model.getWidth(),model.getPaperDirection());
 			if(StringUtil.isNotEmpty(model.getWatermark())){
@@ -697,44 +849,86 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 					WordUtil.addWatermark(doc, data, "#aeb5c0", size);
 				}
 			}
+			//首页页眉不显示
+			if(YesNoEnum.NO.getCode().intValue() == model.getFirstpageHeaderFooterShow().intValue()) {
+				CTSectPr sect = doc.getDocument().getBody().getSectPr();
+				sect.addNewTitlePg();
+			}
 			//页眉
 			JSONArray header = JSON.parseArray(model.getHeader());
 			if(ListUtil.isNotEmpty(header)) {
 				XWPFHeader docHeader = doc.createHeader(HeaderFooterType.DEFAULT);
-				XWPFParagraph paragraph = docHeader.createParagraph();
+				XWPFParagraph paragraph = null;
 				for (int i = 0; i < header.size(); i++) {
 					String type = header.getJSONObject(i).getString("type")==null?"":header.getJSONObject(i).getString("type");
 					switch (type) {
 					case "separator":
+						if(i == 0 || paragraph == null) {
+							paragraph = docHeader.createParagraph();
+						}
 						WordUtil.addSeparator(paragraph, header.getJSONObject(i));
+						if(i == 0) {
+							paragraph = null;
+						}
 						break;
 					default:
-						WordUtil.addParagraph(paragraph, header.getJSONObject(i), null);
+						if(paragraph == null) {
+							paragraph = docHeader.createParagraph();
+						}
+						WordUtil.addParagraph(paragraph, header.getJSONObject(i), null,true);
 						break;
 					}
 				}
+//				XWPFFooter footerFirst = doc.createFooter(HeaderFooterType.FIRST);
+//				paragraph = footerFirst.getParagraphArray(0);
+//				if (paragraph == null)
+//				{
+//					paragraph = footerFirst.createParagraph();
+//				    paragraph.setAlignment(ParagraphAlignment.CENTER);
+//				    XWPFRun run = paragraph.createRun();
+//				    run.setText(" ");
+//				}
 			}
 			//页脚
 			JSONArray footer = JSON.parseArray(model.getFooter());
 			if(ListUtil.isNotEmpty(footer)) {
 				XWPFFooter docFooter = doc.createFooter(HeaderFooterType.DEFAULT);
-				XWPFParagraph paragraph = docFooter.createParagraph();
+				XWPFParagraph paragraph = null;
 				for (int i = 0; i < footer.size(); i++) {
 					String type = footer.getJSONObject(i).getString("type")==null?"":footer.getJSONObject(i).getString("type");
 					switch (type) {
 					case "separator":
+						if(i == 0 || paragraph == null) {
+							paragraph = docFooter.createParagraph();
+						}
 						WordUtil.addSeparator(paragraph, footer.getJSONObject(i));
+						if(i == 0) {
+							paragraph = null;
+						}
 						break;
 					default:
-						WordUtil.addParagraph(paragraph, footer.getJSONObject(i), null);
+						if(paragraph == null) {
+							paragraph = docFooter.createParagraph();
+						}
+						WordUtil.addParagraph(paragraph, footer.getJSONObject(i), null,true);
 						break;
 					}
 				}
+//				XWPFFooter footerFirst = doc.createFooter(HeaderFooterType.FIRST);
+//				paragraph = footerFirst.getParagraphArray(0);
+//				if (paragraph == null)
+//				{
+//					paragraph = footerFirst.createParagraph();
+//				    paragraph.setAlignment(ParagraphAlignment.CENTER);
+//				    XWPFRun run = paragraph.createRun();
+//				    run.setText(" ");
+//				}
 			}
 			//文档主体内容
 			JSONArray main = JSON.parseArray(model.getMain());
+			int abstractNumID = 1;
 			if(ListUtil.isNotEmpty(main)) {
-				XWPFParagraph paragraph = doc.createParagraph();
+				XWPFParagraph paragraph = null;
 				String lastType = "";
 				for (int i = 0; i < main.size(); i++) {
 					JSONObject content = main.getJSONObject(i);
@@ -745,7 +939,8 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 								(!type.equals(lastType) && !"tab".equals(lastType) 
 										&& !"superscript".equals(lastType) 
 										&& !"subscript".equals(lastType)
-										&& !"separator".equals(lastType))) {
+										&& !"separator".equals(lastType)
+										&& !"hyperlink".equals(lastType))) {
 							content.put("value", content.getString("value").replaceFirst("\n", ""));
 							paragraph = doc.createParagraph();
 						}
@@ -755,34 +950,65 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 								content.put("value", value.replaceFirst("\n", ""));
 							}
 						}
-						WordUtil.addParagraph(paragraph,content, null);
+						if(paragraph == null) {
+							paragraph = doc.createParagraph();
+						}
+						WordUtil.addParagraph(paragraph,content, null,false);
 						break;
 					case "title":
-						paragraph = doc.createParagraph();
+						if(paragraph == null) {
+							paragraph = doc.createParagraph();
+						}
 						WordUtil.addTitleParagraph(paragraph, content);
 						break;
 					case "tab":
+						if(paragraph == null) {
+							paragraph = doc.createParagraph();
+						}
 						WordUtil.addTab(paragraph,null);
 						break;
 					case "table":
-						WordUtil.addTable(doc,content);
+						abstractNumID = WordUtil.addTable(doc,content,docTplChartsObj,docTplCodesObj,dynamicData,isTemplate,abstractNumID);
 						break;
 					case "superscript":
+						if(paragraph == null) {
+							paragraph = doc.createParagraph();
+						}
 						WordUtil.addSubSupScript(paragraph, content, "sup");
 						break;
 					case "subscript":
+						if(paragraph == null) {
+							paragraph = doc.createParagraph();
+						}
 						WordUtil.addSubSupScript(paragraph, content, "sub");
 						break;
 					case "separator":
-//						paragraph = doc.createParagraph();
+						if(paragraph == null) {
+							paragraph = doc.createParagraph();
+						}
 						WordUtil.addSeparator(paragraph, content);
 						break;
 					case "list":
-						WordUtil.addList(doc, content);
+						abstractNumID = WordUtil.addList(doc, content,abstractNumID);
+						break;
+					case "hyperlink":
+						if(paragraph == null) {
+							paragraph = doc.createParagraph();
+						}
+						WordUtil.addHyperlink(paragraph, content);
+						break;
+					case "pageBreak":
+						if(paragraph == null) {
+							paragraph = doc.createParagraph();
+						}
+						WordUtil.addPageBreak(paragraph);
 						break;
 					case "image":
 						String chartUrlPrefix = MessageUtil.getValue("chart.url.prefix");
 						String url = content.getString("value");
+						if(paragraph == null) {
+							paragraph = doc.createParagraph();
+						}
 						if(url.contains(chartUrlPrefix)) {
 							//图表
 							if(!StringUtil.isEmptyMap(docTplChartsMap)) {
@@ -794,7 +1020,39 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 								}else {
 									WordUtil.addImage(paragraph, content);
 								}
-							}else {
+							}else if(!StringUtil.isEmptyMap(docTplCodesMap)) {
+								if(docTplCodesMap.containsKey(url) && !isTemplate) {
+									DocTplCodes tplCodes = docTplCodesMap.get(url).get(0);
+									Map<String, Object> data = null;
+									if(dynamicData.get(tplCodes.getDatasetName()) != null) {
+										Object obj = dynamicData.get(tplCodes.getDatasetName());
+										if(obj instanceof List) {
+											List<Map<String, Object>> datas = (List<Map<String, Object>>) obj;
+											data = datas.get(0);
+										}else {
+											data = (Map<String, Object>) dynamicData.get(tplCodes.getDatasetName());
+										}
+										
+									}
+									int width = content.getIntValue("width");
+									int height = content.getIntValue("height");
+									if(data != null) {
+										Object value = data.get(tplCodes.getValueField());
+										if(value != null) {
+											byte[] codeByte = null;
+											if(tplCodes.getCodeType().intValue() == 1) {
+												codeByte = BarCodeUtil.generateBarcodeImage(String.valueOf(value), width, height);
+											}else {
+												codeByte = QRCodeUtil.generateQRCodeImage(String.valueOf(value), width, height);
+											}
+											WordUtil.addImage(paragraph, content, codeByte);
+										}
+									}
+								}else {
+									WordUtil.addImage(paragraph, content);
+								}
+							}
+							else {
 								WordUtil.addImage(paragraph, content);
 							}
 						}else {
@@ -817,13 +1075,41 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 								content.put("value", value.replaceFirst("\n", ""));
 							}
 						}
-						WordUtil.addParagraph(paragraph,content, null);
+						WordUtil.addParagraph(paragraph,content, null,false);
 						break;
 					}
 					lastType = type;
 				}
 			}
-			
+			if(YesNoEnum.NO.getCode().intValue() == model.getFirstpageHeaderFooterShow().intValue()) {
+				addPageNumbers(doc, 0);
+			}
+			 // 创建页脚
+			XWPFFooter pageFooter = doc.createFooter(HeaderFooterType.DEFAULT);//创建一个新的XWPFFooter对象
+		    XWPFParagraph footerParagraph = pageFooter.createParagraph();
+		    footerParagraph.setAlignment(ParagraphAlignment.CENTER);
+		    CTP ctP = footerParagraph.getCTP();
+		    CTPPr ctppr = ctP.addNewPPr();
+		    CTString pst = ctppr.addNewPStyle();
+		    pst.setVal("PageNumber");
+		    
+		    // 添加页码到页脚
+		    XWPFRun footerRun = footerParagraph.createRun();
+		    footerRun.setText("");
+		    footerRun.getCTR().addNewFldChar().setFldCharType(STFldCharType.Enum.forString("begin"));
+		    footerRun.getCTR().addNewInstrText().setStringValue("PAGE \\* MERGEFORMAT");
+		    footerRun.getCTR().addNewInstrText().setSpace(SpaceAttribute.Space.Enum.forString("preserve"));
+		    footerRun.getCTR().addNewFldChar().setFldCharType(STFldCharType.Enum.forString("end"));
+		    
+//		    footerRun.setText("/");
+//		    footerRun.getCTR().addNewFldChar().setFldCharType(STFldCharType.Enum.forString("begin"));
+//		    footerRun.getCTR().addNewInstrText().setStringValue("NUMPAGES \\* MERGEFORMAT");
+//		    footerRun.getCTR().addNewInstrText().setSpace(SpaceAttribute.Space.Enum.forString("preserve"));
+//		    footerRun.getCTR().addNewFldChar().setFldCharType(STFldCharType.Enum.forString("end"));
+//		    footerRun.setText("");
+		    // 将页脚添加到所有的页面
+		    XWPFHeaderFooterPolicy headerFooterPolicy = new XWPFHeaderFooterPolicy(doc);
+		    headerFooterPolicy.createFooter(STHdrFtr.DEFAULT, new XWPFParagraph[]{footerParagraph});
 			baos = new ByteArrayOutputStream();
 			doc.write(baos);
 			baos.flush();
@@ -846,6 +1132,14 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		return baos;
 	}
 	
+	private static void addPageNumbers(XWPFDocument doc, int startingNum) {
+		  CTSectPr sectPr = doc.getDocument().getBody().isSetSectPr() ? doc.getDocument().getBody().getSectPr()
+		    : doc.getDocument().getBody().addNewSectPr();
+		  CTPageNumber pgNum = sectPr.isSetPgNumType() ? sectPr.getPgNumType() : sectPr.addNewPgNumType();
+		  pgNum.setStart(BigInteger.valueOf(startingNum));
+		  pgNum.setFmt(STNumberFormat.DECIMAL);
+	}
+	
 	/**  
 	 * @MethodName: getDatasetDatas
 	 * @Description: 获取数据集数据
@@ -857,7 +1151,8 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 	 * @throws Exception Object
 	 * @date 2024-05-07 04:42:27 
 	 */ 
-	private Object getDatasetDatas(MesGenerateReportDto mesGenerateReportDto,ReportDatasetDto reportTplDataset,List<Map<String, String>> reportSqls,Map<String, List<String>> paramsType,UserInfoDto userInfoDto) throws Exception {
+	private Object getDatasetDatas(MesGenerateReportDto mesGenerateReportDto,ReportDatasetDto reportTplDataset,List<Map<String, String>> reportSqls,
+			Map<String, List<String>> paramsType,UserInfoDto userInfoDto,Map<String, String> apiCache,Map<String, Object> subParams) throws Exception {
 		Map<String, String> sqlMap = new HashMap<>();
 		List<Map<String, Object>> datas = null;
 		Map<String, Object> searchInfo = null;
@@ -873,6 +1168,10 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		{
 			params = ParamUtil.getViewParams((JSONArray) searchInfo.get("params"),userInfoDto);
 		}
+		if(params == null) {
+			params = new HashMap<String, Object>();
+		}
+		params.putAll(subParams);
 		if(DatasetTypeEnum.SQL.getCode().intValue() == reportTplDataset.getDatasetType().intValue()) {
 			Object data = this.iReportTplDatasetService.getDatasetDatasource(reportDatasource);
 			if(data instanceof DataSource)
@@ -923,6 +1222,18 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 				}
 			}
 			String result = null;
+			String key = Md5Util.generateMd5(reportDatasource.getJdbcUrl()+JSONObject.toJSONString(params));
+			if(apiCache.containsKey(key)) {
+				result = apiCache.get(key);
+			}else {
+				if("post".equals(reportDatasource.getApiRequestType()))
+				{
+					result = HttpClientUtil.doPostJson(reportDatasource.getJdbcUrl(), JSONObject.toJSONString(params), headers);
+				}else {
+					result = HttpClientUtil.doGet(reportDatasource.getJdbcUrl(),headers,params);
+				}
+				apiCache.put(key, result);
+			}
 			if("post".equals(reportDatasource.getApiRequestType()))
 			{
 				result = HttpClientUtil.doPostJson(reportDatasource.getJdbcUrl(), JSONObject.toJSONString(params), headers);
@@ -970,7 +1281,7 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 			}
 		}else {
 			//api查询，根据reportdatasource返回值类型(api_result_type)字段判断，ObjectArray是列表数据，Object是对象数据
-			String apiResultType = reportDatasource.getApiRequestType();
+			String apiResultType = reportDatasource.getApiResultType();
 			if("ObjectArray".equals(apiResultType)) {
 				//列表数据，如果数据集名称是以_v或者_V结尾的，则说明是列表数据，并且是竖向扩展，
 				//如果数据集名称是以_h或者_H结尾的，则说明是列表数据，并且是横向扩展
@@ -1066,13 +1377,15 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		List<IBodyElement> bodyElements = xwpfDocument.getBodyElements();
 		Map<BigInteger, JSONObject> listMap = new HashMap<>();
 		List<XWPFHeader> headers = xwpfDocument.getHeaderList();
+		int chartIndex = 0;
+		List<XWPFChart> charts = xwpfDocument.getCharts();
 		if(ListUtil.isNotEmpty(headers)) {
 			for (int i = 0; i < headers.size(); i++) {
 				XWPFHeader header = headers.get(i);
 				List<XWPFParagraph> paragraphs = header.getParagraphs();
 				if(ListUtil.isNotEmpty(paragraphs)) {
 					for (int j = 0; j < paragraphs.size(); j++) {
-						parseTextParagraph(paragraphs.get(j),headerElements);
+						parseTextParagraph(paragraphs.get(j),headerElements,j == 0);
 					}
 				}
 			}
@@ -1084,7 +1397,7 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 				List<XWPFParagraph> paragraphs = footer.getParagraphs();
 				if(ListUtil.isNotEmpty(paragraphs)) {
 					for (int j = 0; j < paragraphs.size(); j++) {
-						parseTextParagraph(paragraphs.get(j),footerElements);
+						parseTextParagraph(paragraphs.get(j),footerElements,j == 0);
 					}
 				}
 			}
@@ -1093,7 +1406,14 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 			for (int i = 0; i < bodyElements.size(); i++) {
 				IBodyElement iBodyElement = bodyElements.get(i);
 				if(iBodyElement instanceof XWPFParagraph) {
-					parseParagraph((XWPFParagraph) iBodyElement,documentElements,listMap);
+					XWPFParagraph paragraph = (XWPFParagraph) iBodyElement;
+					if(isChart(paragraph)) {
+						parseChart(charts,chartIndex,paragraph,documentElements);
+						chartIndex = chartIndex + 1;
+					}else {
+						parseParagraph(paragraph,documentElements,listMap,i==0);
+					}
+					
 				}else if(iBodyElement instanceof XWPFTable) {
 					parseTable((XWPFTable) iBodyElement,documentElements);
 				}
@@ -1107,7 +1427,7 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		return result;
 	}
 	
-	private void parseParagraph(XWPFParagraph paragraph,List<Object> documentElements,Map<BigInteger, JSONObject> listMap) throws Exception{
+	private void parseParagraph(XWPFParagraph paragraph,List<Object> documentElements,Map<BigInteger, JSONObject> listMap,boolean isFirst) throws Exception{
 		if(paragraph.getNumID() != null) {
 			JSONObject listObj = null;
 			if(listMap.containsKey(paragraph.getNumID())) {
@@ -1133,8 +1453,39 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		}else if(paragraph.getStyle() != null) {
 			parseTitleParagraph(paragraph, documentElements);
 		}else {
-			parseTextParagraph(paragraph, documentElements);
+			parseTextParagraph(paragraph, documentElements,isFirst);
 		}
+	}
+//	 public static boolean containsChart(XWPFParagraph paragraph) {
+//	        List<XWPFRun> runs = paragraph.getRuns();
+//	        for (XWPFRun run : runs) {
+//	            if (run.getCTR() != null) {
+//	                CTR ctr = run.getCTR();
+//	                List<CTDrawing> drawings = ctr.getDrawingList();
+//	                for (CTDrawing drawing : drawings) {
+//	                    if (drawing.getInlineList() != null) {
+//	                        for (CTInline inline : drawing.getInlineList()) {
+//	                            if (inline.getGraphic() != null) {
+//	                                CTGraphicalObject graphic = inline.getGraphic();
+//	                                CTGraphicalObjectData graphicData = graphic.getGraphicData();
+//	                                if (graphicData != null && "http://schemas.openxmlformats.org/drawingml/2006/chart".equals(graphicData.getUri())) {
+//	                                    return true;
+//	                                }
+//	                            }
+//	                        }
+//	                    }
+//	                }
+//	            }
+//	        }
+//	        return false;
+//	    }
+	private boolean isChart(XWPFParagraph paragraph) {
+		boolean result = false;
+		String ctpStr = String.valueOf(paragraph.getCTP());
+		if(StringUtil.isNotEmpty(ctpStr) && ctpStr.contains("<c:chart")) {
+			return true;
+		}
+		return result;
 	}
 	
 	private void parseListParagraph(XWPFParagraph paragraph,JSONObject listObj) {
@@ -1293,15 +1644,31 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		}
 	}
 	
-	private void parseTextParagraph(XWPFParagraph paragraph,List<Object> documentElements) throws Exception {
+	private void parseTextParagraph(XWPFParagraph paragraph,List<Object> documentElements,boolean isFirst) throws Exception {
 		List<XWPFRun> runs = paragraph.getRuns();
 		boolean isSeperator = isSeperator(paragraph);
 		if(ListUtil.isNotEmpty(runs)) {
 			for (int i = 0; i < runs.size(); i++) {
 				DocTextDto docTextDto = new DocTextDto();
 				XWPFRun xwpfRun = runs.get(i);
+				List<CTBr> brList = xwpfRun.getCTR().getBrList();
+				if(ListUtil.isNotEmpty(brList)) {
+					for (CTBr br : brList) {
+	                    if (br.getType() == STBrType.PAGE) {
+	                    	DocTextDto pageBreak = new DocTextDto();
+	                    	pageBreak.setType("pageBreak");
+	                    	pageBreak.setValue("\n");
+	            			documentElements.add(pageBreak);
+	                    }
+	                }
+				}
 				List<XWPFPicture> pictures = xwpfRun.getEmbeddedPictures();
 				if(ListUtil.isNotEmpty(pictures)) {
+					if(i == runs.size()-1) {
+						DocTextDto breakDocTextDto = new DocTextDto();
+						breakDocTextDto.setValue("\n");
+						documentElements.add(breakDocTextDto);
+					}
 					for (int j = 0; j < pictures.size(); j++) {
 						DocImageDto docImageDto = new DocImageDto();
 						XWPFPicture picture = pictures.get(j);
@@ -1340,14 +1707,14 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 						}
 					}
 					docTextDto.setType("tab");
-					if(i == 0) {
+					if(i == 0 && !isFirst) {
 						text = "\n"+text;
 					}
 					docTextDto.setValue(text == null?"":text);
 					documentElements.add(docTextDto);
 					continue;
 				}
-				if(i == 0) {
+				if(i == 0 && !isFirst) {
 					text = "\n"+text;
 				}
 				String scriptType = getSupSubScriptType(xwpfRun);
@@ -1518,6 +1885,9 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 				int rowspan = 1;
 				docTableCellDto.setColspan(colspan);
 				docTableCellDto.setRowspan(rowspan);
+				if(StringUtil.isNotEmpty(cell.getColor())) {
+					docTableCellDto.setBackgroundColor("#"+cell.getColor());
+				}
 				if(cell.getCTTc().getTcPr().getGridSpan() != null) {
 					docTableCellDto.setColspan(cell.getCTTc().getTcPr().getGridSpan().getVal().intValue());
 				}
@@ -1537,7 +1907,7 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 				if(ListUtil.isNotEmpty(cellParagraph)) {
 					List<Object> docTextDtos = new ArrayList<>();
 					for (int k = 0; k < cellParagraph.size(); k++) {
-						parseParagraph(cellParagraph.get(k), docTextDtos,new HashMap<>());
+						parseParagraph(cellParagraph.get(k), docTextDtos,new HashMap<>(),k == 0);
 					}
 					docTableCellDto.setValue(docTextDtos);
 				}
@@ -1577,4 +1947,217 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 			}
 		}
 	}
+	
+	private void parseChart(List<XWPFChart> charts,int chartIndex,XWPFParagraph paragraph,List<Object> documentElements) throws Exception{
+		if(ListUtil.isNotEmpty(charts) && charts.size() > chartIndex) {
+			//柱状图或者条形图
+			XWPFChart chart = charts.get(chartIndex);
+			CTChart ctChart = chart.getCTChart();
+			String title = "";
+			try {
+				title = ctChart.getTitle().getTx().getRich().getPArray()[0].getRArray()[0].getT();
+			} catch (Exception e) {
+			}
+	        CTPlotArea plotArea = ctChart.getPlotArea();
+	        if (plotArea.sizeOfBarChartArray() > 0) {
+	        	CTBarChart barChart = plotArea.getBarChartArray(0);
+	        	if (barChart != null) {
+	        		String barType = String.valueOf(barChart.getBarDir().getVal());
+	        		parseBarChart(barChart,title,paragraph.getAlignment(),documentElements,"col".equals(barType)?"column":"bar");
+	        	}
+	        }else if(plotArea.sizeOfLineChartArray() > 0) {
+	        	//折线图
+	        	CTLineChart lineChart = plotArea.getLineChartArray(0);
+	        	parseLineChart(lineChart, title, paragraph.getAlignment(), documentElements);
+	        }else if (plotArea.sizeOfPieChartArray() > 0) {
+	        	//饼图
+	        	CTPieChart pieChart = plotArea.getPieChartArray(0);
+	        	parsePieChart(pieChart, title, paragraph.getAlignment(), documentElements);
+	        }
+		}
+	}
+	
+	private void parseBarChart(CTBarChart barChart,String title,ParagraphAlignment paragraphAlignment,List<Object> documentElements,String type) {
+		DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+		CTBarSer[] seriesArray = barChart.getSerArray();
+		for (CTBarSer series : seriesArray) {
+			String seriesName = "";
+			if(series.getTx().getStrRef() != null) {
+				seriesName = series.getTx().getStrRef().getStrCache().getPtArray()[0].getV();
+			}
+			// 获取类别数据
+			CTStrData catData = null;
+			if (series.getCat() != null && series.getCat().isSetStrRef()) {
+				catData = series.getCat().getStrRef().getStrCache();
+			} else if (series.getCat() != null && series.getCat().isSetStrLit()) {
+				catData = series.getCat().getStrLit();
+			}
+
+			// 获取数值数据
+			CTNumData valData = null;
+			if (series.getVal() != null && series.getVal().isSetNumRef()) {
+				valData = series.getVal().getNumRef().getNumCache();
+			} else if (series.getVal() != null && series.getVal().isSetNumLit()) {
+				valData = series.getVal().getNumLit();
+			}
+
+			if (catData == null || valData == null) {
+				log.error("Category or value data is missing.");
+				continue;
+			}
+
+			int catSize = catData.sizeOfPtArray();
+			int valSize = valData.sizeOfPtArray();
+
+			if (catSize != valSize) {
+				log.error("Mismatched number of categories and values");
+				continue;
+			}
+
+			for (int i = 0; i < catSize; i++) {
+				CTStrVal catPt = catData.getPtArray(i);
+				CTNumVal valPt = valData.getPtArray(i);
+
+				String category = catPt.getV();
+				try {
+					double value = Double.parseDouble(valPt.getV());
+					dataset.setValue(value, seriesName, category);
+				} catch (NumberFormatException e) {
+					log.error("Failed to parse value for category: {}", category, e);
+				}
+			}
+		}
+		byte[] chartByte = JFreeChartUtil.creteBarChart(title, dataset, 520, 250, type);
+		addChartElement(documentElements, chartByte, paragraphAlignment);
+	}
+	
+	private void parseLineChart(CTLineChart lineChart,String title,ParagraphAlignment paragraphAlignment,List<Object> documentElements) throws Exception{
+		DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+		CTLineSer[] seriesArray = lineChart.getSerArray();
+		for (CTLineSer series : seriesArray) {
+			String seriesName = "";
+			if(series.getTx().getStrRef() != null) {
+				seriesName = series.getTx().getStrRef().getStrCache().getPtArray()[0].getV();
+			}
+			// 获取类别数据
+			CTStrData catData = null;
+			if (series.getCat() != null && series.getCat().isSetStrRef()) {
+				catData = series.getCat().getStrRef().getStrCache();
+			} else if (series.getCat() != null && series.getCat().isSetStrLit()) {
+				catData = series.getCat().getStrLit();
+			}
+
+			// 获取数值数据
+			CTNumData valData = null;
+			if (series.getVal() != null && series.getVal().isSetNumRef()) {
+				valData = series.getVal().getNumRef().getNumCache();
+			} else if (series.getVal() != null && series.getVal().isSetNumLit()) {
+				valData = series.getVal().getNumLit();
+			}
+
+			if (catData == null || valData == null) {
+				log.error("Category or value data is missing.");
+				continue;
+			}
+
+			int catSize = catData.sizeOfPtArray();
+			int valSize = valData.sizeOfPtArray();
+
+			if (catSize != valSize) {
+				log.error("Mismatched number of categories and values");
+				continue;
+			}
+
+			for (int i = 0; i < catSize; i++) {
+				CTStrVal catPt = catData.getPtArray(i);
+				CTNumVal valPt = valData.getPtArray(i);
+
+				String category = catPt.getV();
+				try {
+					double value = Double.parseDouble(valPt.getV());
+					dataset.setValue(value, seriesName, category);
+				} catch (NumberFormatException e) {
+					log.error("Failed to parse value for category: {}", category, e);
+				}
+			}
+		}
+		byte[] chartByte = JFreeChartUtil.createLineChart(title, dataset, 520, 250);
+		addChartElement(documentElements, chartByte, paragraphAlignment);
+	}
+	
+	private void parsePieChart(CTPieChart pieChart, String title, ParagraphAlignment paragraphAlignment,
+			List<Object> documentElements) throws Exception {
+		DefaultPieDataset dataset = new DefaultPieDataset();
+		CTPieSer[] seriesArray = pieChart.getSerArray();
+		for (CTPieSer series : seriesArray) {
+			// 获取类别数据
+			CTStrData catData = null;
+			if (series.getCat() != null && series.getCat().isSetStrRef()) {
+				catData = series.getCat().getStrRef().getStrCache();
+			} else if (series.getCat() != null && series.getCat().isSetStrLit()) {
+				catData = series.getCat().getStrLit();
+			}
+
+			// 获取数值数据
+			CTNumData valData = null;
+			if (series.getVal() != null && series.getVal().isSetNumRef()) {
+				valData = series.getVal().getNumRef().getNumCache();
+			} else if (series.getVal() != null && series.getVal().isSetNumLit()) {
+				valData = series.getVal().getNumLit();
+			}
+
+			if (catData == null || valData == null) {
+				log.error("Category or value data is missing.");
+				continue;
+			}
+
+			int catSize = catData.sizeOfPtArray();
+			int valSize = valData.sizeOfPtArray();
+
+			if (catSize != valSize) {
+				log.error("Mismatched number of categories and values");
+				continue;
+			}
+
+			for (int i = 0; i < catSize; i++) {
+				CTStrVal catPt = catData.getPtArray(i);
+				CTNumVal valPt = valData.getPtArray(i);
+
+				String category = catPt.getV();
+				try {
+					double value = Double.parseDouble(valPt.getV());
+					dataset.setValue(category, value);
+				} catch (NumberFormatException e) {
+					log.error("Failed to parse value for category: {}", category, e);
+				}
+			}
+		}
+		byte[] chartByte = JFreeChartUtil.createPieChart(title, dataset, 520, 250,"pie",null);
+		addChartElement(documentElements, chartByte, paragraphAlignment);
+	}
+	
+	private void addChartElement(List<Object> documentElements,byte[] chartByte,ParagraphAlignment paragraphAlignment) {
+		String fileName = IdWorker.getIdStr()+".png";
+	    Map<String, String> result = this.iCommonService.upload(chartByte, fileName);
+	    log.info("Uploaded chart URL: {}", result.get("fileUri"));
+	    DocImageDto docImageDto = new DocImageDto();
+	    docImageDto.setValue(result.get("fileUri"));
+	    docImageDto.setWidth(520);
+	    docImageDto.setHeight(250);
+	    if(paragraphAlignment != null) {
+			if(paragraphAlignment.getValue() == ParagraphAlignment.LEFT.getValue()) {
+				docImageDto.setRowFlex("left");
+			}else if(paragraphAlignment.getValue() == ParagraphAlignment.RIGHT.getValue()) {
+				docImageDto.setRowFlex("right");
+			}else if(paragraphAlignment.getValue() == ParagraphAlignment.CENTER.getValue()) {
+				docImageDto.setRowFlex("center");
+			}else if(paragraphAlignment.getValue() == ParagraphAlignment.BOTH.getValue()) {
+				docImageDto.setRowFlex("alignment");
+			}
+		}else {
+			docImageDto.setRowFlex("center");
+		}
+	    documentElements.add(docImageDto);
+	}
+	
 }
