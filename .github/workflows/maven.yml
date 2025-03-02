@@ -34,7 +34,7 @@ jobs:
         id: create_release
         uses: actions/create-release@v1  # 使用GitHub官方的create-release action，用于创建GitHub Release
         with:
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}  # 设置GitHub令牌作为环境变量
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 设置GitHub令牌作为环境变量
           tag_name: Release-${{ github.run_number }}  # 设置Release的标签名称
           release_name: Release ${{ github.run_number }}  # 设置Release的名称
           draft: false  # 是否是草稿状态
@@ -50,7 +50,7 @@ jobs:
         id: upload_jar
         uses: actions/upload-release-asset@v1  # 使用GitHub官方的upload-release-asset action，用于上传Release的附件
         with:
-          GITHUB_TOKEN: ${{ secrets.ACTION_RELEASE }}  # 设置GitHub令牌作为环境变量
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 设置GitHub令牌作为环境变量
           upload_url: ${{ steps.create_release.outputs.upload_url }}  # 设置上传URL
           asset_path: ./web/target/SpringReport.jar  # 设置要上传的JAR文件路径
           asset_name: SpringReport  # 设置JAR文件的名称
