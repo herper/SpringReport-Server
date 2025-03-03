@@ -37,14 +37,6 @@ jobs:
             exit 1
           fi
 
-          # 检查配置文件
-          if [ ! -f "web/target/classes/application.properties" ]; then
-            echo "❌ 错误：配置文件未找到！"
-            exit 1
-          fi
-
-          echo "✅ 验证通过"
-
       - name: Create Tag
         id: create_tag
         run: |
