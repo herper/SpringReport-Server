@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK
+      - name: Set up JDK 8
         uses: actions/setup-java@v4
         with:
           java-version: 8
@@ -29,7 +29,7 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -DskipTests
 
-      - name: Verify JAR File
+      - name: Verify Files Exist
         run: |
           # 检查 JAR 文件
           if [ ! -f "web/target/SpringReport.jar" ]; then
@@ -37,21 +37,30 @@ jobs:
             exit 1
           fi
 
+          # 检查配置文件
+          if [ ! -f "web/target/classes/application.properties" ]; then
+            echo "❌ 错误：配置文件未找到！"
+            exit 1
+          fi
+
+          echo "✅ 验证通过"
+
       - name: Create Tag
         id: create_tag
         run: |
-          TAG_NAME="v$(date +%Y%m%d%H%M)"
+          TAG_NAME="v$(date +%Y%m%d%H%M%S)"
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_OUTPUT
-          git config --global user.name "Junwwang"
-          git config --global user.email "junwwang@hotmail.com"
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
           git tag $TAG_NAME
           git push origin $TAG_NAME
 
       - name: Publish Release
         uses: softprops/action-gh-release@v1
         with:
-          files: web/target/SpringReport.jar
-                 web/target/classes/application.properties
+          files: |
+            web/target/SpringReport.jar
+            web/target/classes/application.properties
           tag_name: ${{ steps.create_tag.outputs.TAG_NAME }}
           name: "Release ${{ steps.create_tag.outputs.TAG_NAME }}"
         env:
