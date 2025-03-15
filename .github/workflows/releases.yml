@@ -60,7 +60,7 @@ jobs:
         with:
           files: |
             web/target/SpringReport.jar
-            web/target/classes/application.properties
+            web/target/classes/application-dev.properties
           tag_name: ${{ steps.create_tag.outputs.TAG_NAME }}
           name: "Release ${{ steps.create_tag.outputs.TAG_NAME }}"
         env:
