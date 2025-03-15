@@ -1,15 +1,22 @@
 # SpringReport-Server
 
-## SpringReport服务端
+## 开源企业级报表系统SpringReport服务端[感谢蔡老师开源](https://github.com/springreport/springreport)
+
+## 具体使用方法请访问[SpringReport官方网站](https://springreport.vip/)
 
 ### update list
 
-2025-03-09 update form [springreport/springreport](https://github.com/springreport/springreport)
+#### 2025-03-14 update form [springreport/springreport](https://github.com/springreport/springreport)
+
+#### Release版本已通过Github Actions 打包，下载地址：[Releases](https://github.com/herper/SpringReport-Server/releases/tag/v20250314142301)
+
+##### 2025-03-09 update form [springreport/springreport](https://github.com/springreport/springreport)
 
 #### Changelog
 >
-> 2025-03-14 Springreport V2.3.3
-> ####V2.3.3
+> #### 2025-03-14 Springreport V2.3.3
+>
+> ##### V2.3.3
 >
 > ##### 1.word版本报表新增onlyoffice支持，功能比canvas-editor更强大
 >
@@ -47,12 +54,7 @@
 >
 > ##### 2.填报报表部分bug修复和操作上的优化
 >
-
-#### 感谢蔡老师的开源项目
-
-### 有一些无法下载的依赖包，使用了github的仓库。仓库地址：[herper/mvn-repo][def]
-
-[def]: https://github.com/herper/mvn-repo
+### 有一些无法下载的依赖包，使用了github的仓库。仓库地址：[herper/mvn-repo](https://github.com/herper/mvn-repo)
 
 ### P.S.：pom.xml文件进行了更新，为了方便Github Actions运行，增加了远程源仓库地址
 
