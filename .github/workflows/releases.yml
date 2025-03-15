@@ -38,7 +38,7 @@ jobs:
           fi
 
           # 检查配置文件
-          if [ ! -f "web/target/classes/application.properties" ]; then
+          if [ ! -f "web/target/classes/application-dev.properties" ]; then
             echo "❌ 错误：配置文件未找到！"
             exit 1
           fi
