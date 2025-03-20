@@ -365,6 +365,7 @@ public class ReportTplServiceImpl extends ServiceImpl<ReportTplMapper, ReportTpl
 	public PageEntity tablePagingQuery(ReportTpl model) {
 		PageEntity result = new PageEntity();
 		model.setDelFlag(DelFlagEnum.UNDEL.getCode());
+		model.setIsTemplate(model.getIsTemplate());
 		com.github.pagehelper.Page<?> page = PageHelper.startPage(model.getCurrentPage(), model.getPageSize()); //分页条件
 		List<ReportTplDto> list = this.baseMapper.getTableList(model);
 		if(!ListUtil.isEmpty(list))
@@ -506,6 +507,11 @@ public class ReportTplServiceImpl extends ServiceImpl<ReportTplMapper, ReportTpl
 		}
 		queryWrapper.eq("tpl_code", model.getTplCode());
 		queryWrapper.eq("del_flag", DelFlagEnum.UNDEL.getCode());
+		if(model.getIsTemplate() != null && model.getIsTemplate().intValue() == YesNoEnum.YES.getCode().intValue()) {
+			queryWrapper.eq("is_template", YesNoEnum.YES.getCode());
+		}else {
+			queryWrapper.eq("is_template", YesNoEnum.NO.getCode());
+		}
 		ReportTpl isExist = this.getOne(queryWrapper,false);
 		if(isExist != null)
 		{
@@ -569,6 +575,11 @@ public class ReportTplServiceImpl extends ServiceImpl<ReportTplMapper, ReportTpl
 		}
 		queryWrapper.eq("tpl_code", model.getTplCode());
 		queryWrapper.eq("del_flag", DelFlagEnum.UNDEL.getCode());
+		if(model.getIsTemplate() != null && model.getIsTemplate().intValue() == YesNoEnum.YES.getCode().intValue()) {
+			queryWrapper.eq("is_template", YesNoEnum.YES.getCode());
+		}else {
+			queryWrapper.eq("is_template", YesNoEnum.NO.getCode());
+		}
 		ReportTpl isExist = this.getOne(queryWrapper,false);
 		if(isExist != null)
 		{
@@ -4921,6 +4932,14 @@ public class ReportTplServiceImpl extends ServiceImpl<ReportTplMapper, ReportTpl
 				rowAndCol = new HashMap<String, Integer>();
 				rowAndCol.put("maxX", luckySheetBindData.getCoordsx());
 				rowAndCol.put("maxY", luckySheetBindData.getCoordsy());
+				Map<String, Object> merge = new HashMap<String, Object>();
+				merge.put(LuckySheetPropsEnum.R.getCode(), rowAndCol.get("maxX"));
+				merge.put(LuckySheetPropsEnum.C.getCode(), rowAndCol.get("maxY"));
+				merge.put(LuckySheetPropsEnum.ROWSPAN.getCode(), luckySheetBindData.getRowSpan());
+				merge.put(LuckySheetPropsEnum.COLSPAN.getCode(), luckySheetBindData.getColSpan());
+				if(YesNoEnum.YES.getCode().intValue() == luckySheetBindData.getIsMerge()) {
+					mergeMap.put(String.valueOf(rowAndCol.get("maxX"))+LuckySheetPropsEnum.COORDINATECONNECTOR.getCode()+String.valueOf(rowAndCol.get("maxY")), merge);
+				}
 				this.processDynamicRange(luckySheetBindData, dynamicRange, rowAndCol.get("maxX").intValue(), rowAndCol.get("maxY").intValue(), luckySheetBindData.getCellData());
 				this.processCoverCell(objectMapper, usedCells, luckySheetBindData, cellDatas, calcChain, dataRowLen, rowlen, dataColLen, columnlen, border, maxXAndY, maxCoordinate, borderInfo);
 				return;
@@ -11224,7 +11243,11 @@ public class ReportTplServiceImpl extends ServiceImpl<ReportTplMapper, ReportTpl
 		mesExportExcel.setPassword(mesGenerateReportDto.getPassword());
 		mesExportExcel.setSheetConfigs(sheetConfigs);
 		mesExportExcel.setChartsBase64(mesGenerateReportDto.getChartsBase64());
-		ReportExcelUtil.export(mesExportExcel,reportTpl.getTplName(),mesGenerateReportDto.getPassword(),httpServletResponse);
+		if(mesGenerateReportDto.isLarge()) {
+			ReportExcelUtil.largeExport(mesExportExcel,reportTpl.getTplName(),mesGenerateReportDto.getPassword(),httpServletResponse);
+		}else {
+			ReportExcelUtil.export(mesExportExcel,reportTpl.getTplName(),mesGenerateReportDto.getPassword(),httpServletResponse);
+		}
 	}
 
 
