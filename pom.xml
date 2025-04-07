@@ -269,7 +269,6 @@
 			<artifactId>docx4j-export-fo</artifactId>
 			<version>${docx4j.version}</version>
 		</dependency>
-		<!-- 删除重复的docx4j-export-fo依赖 -->
 		<dependency>
 			<groupId>com.opencsv</groupId>
 			<artifactId>opencsv</artifactId>
@@ -358,21 +357,122 @@
 			<artifactId>rocketmq-spring-boot-starter</artifactId>
 			<version>${rocketmq.version}</version>
 		</dependency>
-		<!-- 移除了孤立的注释 -->
+		<dependency>
+			<groupId>com.springreport</groupId>
+			<artifactId>excel2pdf</artifactId>
+			<version>${excel2pdf.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.xmlbeans</groupId>
+					<artifactId>xmlbeans</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
 	</dependencies>
 	
 	<!-- 配置仓库地址 -->
     <repositories>
-        <!-- ... 仓库配置保持不变 ... -->
+        <!-- 官方仓库（优先级最高） -->
+        <repository>
+            <id>central</id>
+            <name>Maven Central</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <releases>
+                <enabled>true</enabled>
+                <checksumPolicy>fail</checksumPolicy>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+
+        <!-- GitHub自定义仓库（备用仓库） -->
+        <repository>
+            <id>github-mvn-repo</id>
+            <name>SpringReport Maven Repo</name>
+            <url>https://raw.githubusercontent.com/herper/mvn-repo/main/SpringReport/</url>
+            <layout>default</layout>
+            <releases>
+                <enabled>true</enabled>
+                <updatePolicy>daily</updatePolicy>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
     </repositories>
 	
 	<!-- 构建配置 -->
 	<build>
-		<!-- ... 构建配置保持不变 ... -->
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>true</filtering>
+			</resource>
+			<resource>
+                <directory>${project.basedir}/lib</directory>
+                <targetPath>BOOT-INF/lib/</targetPath>
+            </resource>
+		</resources>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-resources-plugin</artifactId>
+				<version>3.1.0</version>
+				<configuration>
+					<nonFilteredFileExtensions>
+						<nonFilteredFileExtension>woff</nonFilteredFileExtension>
+						<nonFilteredFileExtension>woff2</nonFilteredFileExtension>
+						<nonFilteredFileExtension>eot</nonFilteredFileExtension>
+						<nonFilteredFileExtension>ttf</nonFilteredFileExtension>
+						<nonFilteredFileExtension>svg</nonFilteredFileExtension>
+						<nonFilteredFileExtension>docx</nonFilteredFileExtension>
+					</nonFilteredFileExtensions>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.8.1</version>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+				</configuration>
+			</plugin>
+		</plugins>
 	</build>
 	
 	<!-- 环境配置 -->
 	<profiles>
-		<!-- ... 环境配置保持不变 ... -->
+		<!-- 开发环境 -->
+		<profile>
+			<id>dev</id>
+			<properties>
+				<profiles.active>dev</profiles.active>
+			</properties>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+		</profile>
+		<!-- 测试环境 -->
+		<profile>
+			<id>test</id>
+			<properties>
+				<profiles.active>test</profiles.active>
+			</properties>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+			</activation>
+		</profile>
+		<!-- 正式环境 -->
+		<profile>
+			<id>pub</id>
+			<properties>
+				<profiles.active>pub</profiles.active>
+			</properties>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+			</activation>
+		</profile>
 	</profiles>
 </project>
