@@ -77,6 +77,7 @@ public class LuckySheetListDataProcess extends LuckySheetBasicDynamicDataProcess
 //			boolean lastIsGroupMerge = false;//上组数据分组是否合一
 //			int lastCellExtend = CellExtendEnum.NOEXTEND.getCode().intValue();//上组数据扩展方向
 			int lastIsConditions = 2; 
+			int continueGroupMergeCount = 0;
 			List<List<Map<String, Object>>> lastData = null;
 			List<List<Map<String, Object>>> lastFilterData = null;
 			ObjectMapper objectMapper = new ObjectMapper();
@@ -116,6 +117,10 @@ public class LuckySheetListDataProcess extends LuckySheetBasicDynamicDataProcess
 				bindData.setHloopCount(variableCells.get(i).getHloopCount()==null?0:variableCells.get(i).getHloopCount());
 				bindData.setHloopEmptyCount(variableCells.get(i).getHloopEmptyCount()==null?0:variableCells.get(i).getHloopEmptyCount());
 				bindData.setVloopEmptyCount(variableCells.get(i).getVloopEmptyCount()==null?0:variableCells.get(i).getVloopEmptyCount());
+				bindData.setIsObject(variableCells.get(i).getIsObject());
+				bindData.setDataType(variableCells.get(i).getDataType());
+				bindData.setDataAttr(variableCells.get(i).getDataAttr());
+				bindData.setSubExtend(variableCells.get(i).getSubExtend());
 				if(StringUtil.isNotEmpty(variableCells.get(i).getFormsAttrs())) {
 					//填报设置如果设置了下拉单选数据字典，则以填报设置为准
 					JSONObject formsAttrs = JSON.parseObject(variableCells.get(i).getFormsAttrs());
@@ -193,6 +198,7 @@ public class LuckySheetListDataProcess extends LuckySheetBasicDynamicDataProcess
 				if(i == 0)
 				{
 					bindData.setLastAggregateType(variableCells.get(i).getAggregateType());
+//					bindData.setLastIsGroupMerge(variableCells.get(i).getIsGroupMerge());
 					List<List<Map<String, Object>>> datas = new ArrayList<List<Map<String,Object>>>();
 					datas.add(data);
 					bindData.setDatas(datas);
@@ -200,6 +206,7 @@ public class LuckySheetListDataProcess extends LuckySheetBasicDynamicDataProcess
 				}else {
 					bindData.setAggregateType(variableCells.get(i).getAggregateType());
 					bindData.setLastAggregateType(lastAggregateType);
+//					bindData.setContinueGroupMergeCount(continueGroupMergeCount);
 					if(DataFromEnum.DEFAULT.getCode().intValue() == bindData.getDataFrom().intValue())
 					{//默认，使用上一个单元格计算完后的数据
 						bindData.setLastIsConditions(lastIsConditions);
@@ -350,6 +357,7 @@ public class LuckySheetListDataProcess extends LuckySheetBasicDynamicDataProcess
 				bindDatas.add(bindData);
  				lastAggregateType = bindData.getAggregateType();
  				lastIsConditions = bindData.getIsConditions();
+// 				continueGroupMergeCount = bindData.getContinueGroupMergeCount();
 				lastData = bindData.getDatas();
 				lastFilterData = bindData.getFilterDatas();
 				Map<String, List<List<Map<String, Object>>>> processedCellData = processedCells.get(variableCells.get(i).getSheetId() + "-" + bindData.getCoordsx() +"-" + bindData.getCoordsy());
@@ -395,6 +403,7 @@ public class LuckySheetListDataProcess extends LuckySheetBasicDynamicDataProcess
 			LuckySheetFormsBindData bindData = null;
 			String lastAggregateType = "";//上组数据聚合方式
 			int lastIsConditions = 2; 
+			int continueGroupMergeCount = 0;
 			List<List<Map<String, Object>>> lastData = null;
 			List<List<Map<String, Object>>> lastFilterData = null;
 			ObjectMapper objectMapper = new ObjectMapper();

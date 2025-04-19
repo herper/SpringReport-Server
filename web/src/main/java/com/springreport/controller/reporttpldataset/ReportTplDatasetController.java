@@ -3,7 +3,6 @@
  */
 package com.springreport.controller.reporttpldataset;
 
-import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.HashMap;
 import java.util.List;
@@ -25,7 +24,6 @@ import com.springreport.constants.Constants;
 import com.springreport.constants.StatusCode;
 import com.springreport.dto.reportdatasource.ApiTestResultDto;
 import com.springreport.dto.reporttpldataset.MesGetRelyOnSelectData;
-import com.springreport.dto.reporttpldataset.MesScreenGetSqlDataDto;
 import com.springreport.dto.reporttpldataset.ReportDatasetDto;
 import com.springreport.dto.reporttpldataset.ReportTplDatasetDto;
 import com.springreport.entity.reporttpldataset.ReportTplDataset;
@@ -166,7 +164,7 @@ public class ReportTplDatasetController extends BaseController {
 	@MethodLog(module="ReportTplDataset",remark="预览获取报表数据集参数",operateType=Constants.OPERATE_TYPE_SEARCH)
 	@Check({"tplId:required#模板id"})
 	@RequiresPermissions(value = {"reportDesign_previewReport","reportTpl_reportView","viewReport_view","docTpl_view","slide_view","template_market","excelTemplate_viewReport","wordTemplate_view"},logical = Logical.OR)
-	public Response getReportDatasetsParam(@RequestBody ReportTplDatasetDto reportTplDataset) throws ParseException
+	public Response getReportDatasetsParam(@RequestBody ReportTplDatasetDto reportTplDataset) throws Exception
 	{
 		Map<String, Object> result = this.iReportTplDatasetService.getReportDatasetsParam(reportTplDataset);
 		return Response.success(result);
@@ -184,7 +182,7 @@ public class ReportTplDatasetController extends BaseController {
 	@RequestMapping(value = "/getShareReportDatasetsParam",method = RequestMethod.POST)
 	@MethodLog(module="ReportTplDataset",remark="分享预览获取报表数据集参数",operateType=Constants.OPERATE_TYPE_SEARCH)
 	@Check({"tplId:required#模板id"})
-	public Response getShareReportDatasetsParam(@RequestBody ReportTplDatasetDto reportTplDataset) throws ParseException
+	public Response getShareReportDatasetsParam(@RequestBody ReportTplDatasetDto reportTplDataset) throws Exception
 	{
 		String shareCode = this.httpServletRequest.getHeader("shareCode");
 		String shareUser = this.httpServletRequest.getHeader("shareUser");

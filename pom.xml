@@ -4,10 +4,8 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.springreport</groupId>
 	<artifactId>parent</artifactId>
-	<version>2.3.3</version>  <!-- 应与revision保持一致 -->
+	<version>2.3.4</version>
 	<packaging>pom</packaging>
-	
-	<!-- 子模块定义 -->
 	<modules>
 		<module>data</module>
 		<module>service</module>
@@ -15,61 +13,49 @@
 		<module>pojo</module>
 		<module>common</module>
 	</modules>
-	
-	<!-- 属性定义 -->
 	<properties>
-		<revision>2.3.3</revision>  <!-- 修正为与version一致 -->
+		<revision>2.3.2</revision>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		
-		<!-- Spring生态 -->
 		<spring-boot.version>2.7.12</spring-boot.version>
-		
-		<!-- 数据库相关 -->
 		<mysql.version>8.0.33</mysql.version>
 		<mybatis-plus.version>3.5.5</mybatis-plus.version>
+		<!-- <shardingsphere.version>4.1.0</shardingsphere.version> -->
 		<druid.version>1.2.23</druid.version>
-		<pagehelper.version>2.0.0</pagehelper.version>
-		<sqljdbc4.version>4.0</sqljdbc4.version>
-		<ojdbc.version>23.4.0.24.05</ojdbc.version>
-		<postgresql.version>42.7.3</postgresql.version>
-		<orai18n.version>23.4.0.24.05</orai18n.version>
-		<DmJdbcDriver.version>1.8.0</DmJdbcDriver.version>
-		<clickhouse-jdbc.version>0.3.2</clickhouse-jdbc.version>
-		<x-pack-sql-jdbc.version>8.14.0</x-pack-sql-jdbc.version>
-		<taos-jdbcdriver.version>3.2.11</taos-jdbcdriver.version>
-		<kingbase8.version>8.6.0</kingbase8.version>
-		<influxdb-java.version>2.24</influxdb-java.version>
-		
-		<!-- 安全框架 -->
-		<shiro.version>1.13.0</shiro.version>
-		<jwt.version>4.4.0</jwt.version>
-		
-		<!-- 工具库 -->
 		<lang3.version>3.14.0</lang3.version>
 		<aspectj.version>1.9.22</aspectj.version>
+		<shiro.version>1.13.0</shiro.version>
 		<lombok.version>1.18.32</lombok.version>
+		<pagehelper.version>2.0.0</pagehelper.version>
 		<fastjson.version>1.2.83</fastjson.version>
+		<jwt.version>4.4.0</jwt.version>
 		<httpclient.version>4.5.14</httpclient.version>
 		<velocity.version>1.7</velocity.version>
 		<org.apache.poi.version>5.2.3</org.apache.poi.version>
 		<commons.io.version>2.16.0</commons.io.version>
+		<sqljdbc4.version>4.0</sqljdbc4.version>
+		<ojdbc.version>23.4.0.24.05</ojdbc.version>
+		<postgresql.version>42.7.3</postgresql.version>
+		<orai18n.version>23.4.0.24.05</orai18n.version>
 		<commons-compress.version>1.26.0</commons-compress.version>
 		<poi-tl.version>1.12.2</poi-tl.version>
 		<jsoup.version>1.17.2</jsoup.version>
 		<docx4j.version>8.3.9</docx4j.version>
 		<jackson.version>2.16.2</jackson.version>
 		<aviator.version>5.4.3</aviator.version>
+		<influxdb-java.version>2.24</influxdb-java.version>
+		<DmJdbcDriver.version>1.8.0</DmJdbcDriver.version>
 		<hutool.version>5.8.28</hutool.version>
+		<clickhouse-jdbc.version>0.3.2</clickhouse-jdbc.version>
 		<jfreechart.version>1.5.4</jfreechart.version>
 		<excel2pdf.version>2.3.2</excel2pdf.version>
+		<x-pack-sql-jdbc.version>8.14.0</x-pack-sql-jdbc.version>
+		<taos-jdbcdriver.version>3.2.11</taos-jdbcdriver.version>
+		<kingbase8.version>8.6.0</kingbase8.version>
 		<rocketmq.version>2.3.0</rocketmq.version>
 		<opencsv.version>5.9</opencsv.version>
 	</properties>
-	
 	<dependencies>
-		<!-- ================ -->
-		<!-- Spring Boot 相关依赖 -->
-		<!-- ================ -->
+		<!-- springboot相关依赖 start -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter</artifactId>
@@ -115,10 +101,8 @@
 			<artifactId>spring-boot-starter-mail</artifactId>
 			<version>${spring-boot.version}</version>
 		</dependency>
-		
-		<!-- ================ -->
-		<!-- ORM 相关依赖 -->
-		<!-- ================ -->
+		<!-- springboot相关依赖 end -->
+		<!-- ORM相关依赖 start -->
 		<dependency>
 			<groupId>com.baomidou</groupId>
 			<artifactId>mybatis-plus-boot-starter</artifactId>
@@ -139,10 +123,8 @@
 			<artifactId>druid</artifactId>
 			<version>${druid.version}</version>
 		</dependency>
-		
-		<!-- ================ -->
-		<!-- 安全框架 shiro+jwt -->
-		<!-- ================ -->
+		<!-- ORM相关依赖 end -->
+		<!-- 安全框架shiro+jwt start -->
 		<dependency>
 			<groupId>org.apache.shiro</groupId>
 			<artifactId>shiro-spring-boot-web-starter</artifactId>
@@ -153,10 +135,8 @@
 			<artifactId>java-jwt</artifactId>
 			<version>${jwt.version}</version>
 		</dependency>
-		
-		<!-- ================ -->
-		<!-- AspectJ 相关依赖 -->
-		<!-- ================ -->
+		<!-- 安全框架shiro+jwt end -->
+		<!-- aspectj相关依赖 start -->
 		<dependency>
 			<groupId>org.aspectj</groupId>
 			<artifactId>aspectjrt</artifactId>
@@ -172,19 +152,57 @@
 			<artifactId>aspectjweaver</artifactId>
 			<version>${aspectj.version}</version>
 		</dependency>
+		<!-- aspectj相关依赖 end -->
 
-		<!-- ================ -->
-		<!-- HTTP 客户端 -->
-		<!-- ================ -->
+		<!-- httpclient 相关依赖 strat -->
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpclient</artifactId>
 			<version>${httpclient.version}</version>
 		</dependency>
+		<!-- httpclient 相关依赖 end -->
 
-		<!-- ================ -->
-		<!-- 数据库驱动 -->
-		<!-- ================ -->
+		<!-- 其他依赖 start -->
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<version>${lang3.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.alibaba</groupId>
+			<artifactId>fastjson</artifactId>
+			<version>${fastjson.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>${lombok.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-ooxml-full</artifactId>
+			<version>${org.apache.poi.version}</version>
+		</dependency>
+		<dependency>
+		    <groupId>org.apache.poi</groupId>
+		    <artifactId>poi-ooxml</artifactId>
+		    <version>${org.apache.poi.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>${commons.io.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-compress</artifactId>
+			<version>${commons-compress.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.velocity</groupId>
+			<artifactId>velocity</artifactId>
+			<version>${velocity.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>com.microsoft.sqlserver</groupId>
 			<artifactId>sqljdbc4</artifactId>
@@ -205,15 +223,84 @@
 			<artifactId>orai18n</artifactId>
 			<version>${orai18n.version}</version>
 		</dependency>
+		<!--word操作工具类 -->
+		<dependency>
+			<groupId>com.deepoove</groupId>
+			<artifactId>poi-tl</artifactId>
+			<version>${poi-tl.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>${jsoup.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.docx4j</groupId>
+			<artifactId>docx4j-JAXB-Internal</artifactId>
+			<version>${docx4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.docx4j</groupId>
+			<artifactId>docx4j-export-fo</artifactId>
+			<version>${docx4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.docx4j</groupId>
+			<artifactId>docx4j-export-fo</artifactId>
+			<version>${docx4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>${jackson.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-core</artifactId>
+			<version>${jackson.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.googlecode.aviator</groupId>
+			<artifactId>aviator</artifactId>
+			<version>${aviator.version}</version>
+		</dependency>
+		<!-- 引入influxdb依赖 -->
+		<dependency>
+			<groupId>org.influxdb</groupId>
+			<artifactId>influxdb-java</artifactId>
+			<version>${influxdb-java.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>com.dm</groupId>
 			<artifactId>DmJdbcDriver</artifactId>
 			<version>${DmJdbcDriver.version}</version>
 		</dependency>
 		<dependency>
+			<groupId>cn.hutool</groupId>
+			<artifactId>hutool-all</artifactId>
+			<version>${hutool.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.springreport</groupId>
+			<artifactId>excel2pdf</artifactId>
+			<version>${excel2pdf.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.xmlbeans</groupId>
+					<artifactId>xmlbeans</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
 			<groupId>ru.yandex.clickhouse</groupId>
 			<artifactId>clickhouse-jdbc</artifactId>
 			<version>${clickhouse-jdbc.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jfree</groupId>
+			<artifactId>jfreechart</artifactId>
+			<version>${jfreechart.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.elasticsearch.plugin</groupId>
@@ -231,44 +318,11 @@
 			<version>${kingbase8.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>com.highgo</groupId>
-			<artifactId>HgdbJdbc</artifactId>
-			<version>6.2.4</version>
+			<groupId>org.apache.rocketmq</groupId>
+			<artifactId>rocketmq-spring-boot-starter</artifactId>
+			<version>${rocketmq.version}</version>
 		</dependency>
-		
-		<!-- ================ -->
-		<!-- 文档处理相关 -->
-		<!-- ================ -->
-		<dependency>
-			<groupId>org.apache.poi</groupId>
-			<artifactId>poi-ooxml-full</artifactId>
-			<version>${org.apache.poi.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.poi</groupId>
-			<artifactId>poi-ooxml</artifactId>
-			<version>${org.apache.poi.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.deepoove</groupId>
-			<artifactId>poi-tl</artifactId>
-			<version>${poi-tl.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.jsoup</groupId>
-			<artifactId>jsoup</artifactId>
-			<version>${jsoup.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.docx4j</groupId>
-			<artifactId>docx4j-JAXB-Internal</artifactId>
-			<version>${docx4j.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.docx4j</groupId>
-			<artifactId>docx4j-export-fo</artifactId>
-			<version>${docx4j.version}</version>
-		</dependency>
+		<!-- 其他依赖 end -->
 		<dependency>
 			<groupId>com.opencsv</groupId>
 			<artifactId>opencsv</artifactId>
@@ -284,92 +338,12 @@
 			<artifactId>itext-asian</artifactId>
 			<version>5.2.0</version>
 		</dependency>
-		
-		<!-- ================ -->
-		<!-- JSON/数据处理 -->
-		<!-- ================ -->
 		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-			<version>${jackson.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-core</artifactId>
-			<version>${jackson.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.googlecode.aviator</groupId>
-			<artifactId>aviator</artifactId>
-			<version>${aviator.version}</version>
-		</dependency>
-		
-		<!-- ================ -->
-		<!-- 工具库 -->
-		<!-- ================ -->
-		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-lang3</artifactId>
-			<version>${lang3.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.alibaba</groupId>
-			<artifactId>fastjson</artifactId>
-			<version>${fastjson.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<version>${lombok.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>commons-io</groupId>
-			<artifactId>commons-io</artifactId>
-			<version>${commons.io.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-compress</artifactId>
-			<version>${commons-compress.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.velocity</groupId>
-			<artifactId>velocity</artifactId>
-			<version>${velocity.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.influxdb</groupId>
-			<artifactId>influxdb-java</artifactId>
-			<version>${influxdb-java.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>cn.hutool</groupId>
-			<artifactId>hutool-all</artifactId>
-			<version>${hutool.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.jfree</groupId>
-			<artifactId>jfreechart</artifactId>
-			<version>${jfreechart.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.rocketmq</groupId>
-			<artifactId>rocketmq-spring-boot-starter</artifactId>
-			<version>${rocketmq.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.springreport</groupId>
-			<artifactId>excel2pdf</artifactId>
-			<version>${excel2pdf.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.xmlbeans</groupId>
-					<artifactId>xmlbeans</artifactId>
-				</exclusion>
-			</exclusions>
+		    <groupId>com.highgo</groupId>
+		    <artifactId>HgdbJdbc</artifactId>
+		    <version>6.2.4</version>
 		</dependency>
 	</dependencies>
-	
 	<!-- 配置仓库地址 -->
     <repositories>
         <!-- 官方仓库（优先级最高） -->
@@ -401,15 +375,13 @@
             </snapshots>
         </repository>
     </repositories>
-	
-	<!-- 构建配置 -->
 	<build>
 		<resources>
 			<resource>
 				<directory>src/main/resources</directory>
 				<filtering>true</filtering>
 			</resource>
-			<resource>
+			 <resource>
                 <directory>${project.basedir}/lib</directory>
                 <targetPath>BOOT-INF/lib/</targetPath>
             </resource>
@@ -441,8 +413,6 @@
 			</plugin>
 		</plugins>
 	</build>
-	
-	<!-- 环境配置 -->
 	<profiles>
 		<!-- 开发环境 -->
 		<profile>

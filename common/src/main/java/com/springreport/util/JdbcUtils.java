@@ -26,6 +26,9 @@ import javax.sql.DataSource;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.xpack.sql.jdbc.EsDataSource;
+import org.influxdb.InfluxDB;
+import org.influxdb.InfluxDBFactory;
+import org.influxdb.dto.Query;
 import org.influxdb.dto.QueryResult;
 
 import com.alibaba.druid.pool.DruidDataSource;
@@ -245,7 +248,7 @@ public class JdbcUtils {
 		{
 			sqlText = Constants.ORACLE_START + sqlText + Constants.ORACLE_END;
 		}
-        
+		System.err.println("解析后的sql:"+sqlText);
         return sqlText;
     }
 	
@@ -285,6 +288,7 @@ public class JdbcUtils {
 	    ResultSet rs = null;
 	    try {
 	    	conn = dataSource.getConnection();
+	    	DatabaseMetaData metaData = conn.getMetaData();
 	        stmt = conn.createStatement();
 	        Map<String, Object> params = new HashMap<>();
 	        if(StringUtil.isNotEmpty(sqlParams))
@@ -330,12 +334,22 @@ public class JdbcUtils {
             final ResultSetMetaData rsMataData = rs.getMetaData();
             final int count = rsMataData.getColumnCount();
             result = new ArrayList<>(count);
+            Map<String, Map<String, String>> tableColumnRemarks = new HashMap<String, Map<String,String>>();
             for (int i = 1; i <= count; i++) {
             	Map<String, Object> column = new HashMap<String, Object>();
-            	column.put("columnName", rsMataData.getColumnName(i));
+            	String tableName = rsMataData.getTableName(i);
+            	Map<String, String> columnComments = null;
+            	if(!tableColumnRemarks.containsKey(tableName)) {
+            		getColumnComments(metaData,tableName,tableColumnRemarks);
+            	}
+            	columnComments = tableColumnRemarks.get(tableName);
+            	String columnName = rsMataData.getColumnName(i);
+            	column.put("columnName", columnName);
             	column.put("name", rsMataData.getColumnLabel(i));
             	column.put("dataType", rsMataData.getColumnTypeName(i));
             	column.put("width", rsMataData.getColumnDisplaySize(i));
+            	column.put("className", rsMataData.getColumnClassName(i));
+            	column.put("remark", columnComments.get(columnName));
             	result.add(column);
             }
         } catch (final SQLException ex) {
@@ -351,6 +365,20 @@ public class JdbcUtils {
 	    return result;
 	}
 	
+	/**获取字段注解*/
+    private static Map<String, String> getColumnComments(DatabaseMetaData metaData, String tableName,Map<String, Map<String, String>> tableColumnRemarks) throws SQLException {
+        Map<String, String> columnComments = new HashMap<>();
+        try (ResultSet columns = metaData.getColumns(null, null, tableName, null)) {
+            while (columns.next()) {
+                String columnName = columns.getString("COLUMN_NAME");
+                String columnComment = columns.getString("REMARKS");
+                columnComments.put(columnName, columnComment);
+            }
+        }
+        tableColumnRemarks.put(tableName, columnComments);
+        return columnComments;
+    }
+	
 	public static List<Map<String, Object>> parseMetaDataColumns(DataSource dataSource,String sqlText,int dataSourceType,String sqlParams,String username,String password,UserInfoDto userInfoDto) {
 		List<Map<String, Object>> result = null;
 		Connection conn = null;
@@ -358,7 +386,8 @@ public class JdbcUtils {
 	    ResultSet rs = null;
 	    try {
 	    	conn = dataSource.getConnection(StringUtil.isNullOrEmpty(username)?"":username,StringUtil.isNullOrEmpty(password)?"":password);
-	        stmt = conn.createStatement();
+	    	DatabaseMetaData metaData = conn.getMetaData();
+	    	stmt = conn.createStatement();
 	        Map<String, Object> params = new HashMap<>();
 	        if(StringUtil.isNotEmpty(sqlParams))
 			{
@@ -402,12 +431,22 @@ public class JdbcUtils {
             final ResultSetMetaData rsMataData = rs.getMetaData();
             final int count = rsMataData.getColumnCount();
             result = new ArrayList<>(count);
+            Map<String, Map<String, String>> tableColumnRemarks = new HashMap<String, Map<String,String>>();
             for (int i = 1; i <= count; i++) {
             	Map<String, Object> column = new HashMap<String, Object>();
+            	String tableName = rsMataData.getTableName(i);
+            	Map<String, String> columnComments = null;
+            	if(!tableColumnRemarks.containsKey(tableName)) {
+            		getColumnComments(metaData,tableName,tableColumnRemarks);
+            	}
+            	columnComments = tableColumnRemarks.get(tableName);
+            	String columnName = rsMataData.getColumnName(i);
             	column.put("columnName", rsMataData.getColumnName(i));
             	column.put("name", rsMataData.getColumnLabel(i));
             	column.put("dataType", rsMataData.getColumnTypeName(i));
             	column.put("width", rsMataData.getColumnDisplaySize(i));
+            	column.put("className", rsMataData.getColumnClassName(i));
+            	column.put("remark", columnComments.get(columnName));
             	result.add(column);
             }
         } catch (final SQLException ex) {
@@ -429,6 +468,7 @@ public class JdbcUtils {
 	    ResultSet rs = null;
 	    try {
 	        stmt = conn.createStatement();
+	        DatabaseMetaData metaData = conn.getMetaData();
 	        Map<String, Object> params = new HashMap<>();
 	        if(StringUtil.isNotEmpty(sqlParams))
 			{
@@ -468,12 +508,22 @@ public class JdbcUtils {
             final ResultSetMetaData rsMataData = rs.getMetaData();
             final int count = rsMataData.getColumnCount();
             result = new ArrayList<>(count);
+            Map<String, Map<String, String>> tableColumnRemarks = new HashMap<String, Map<String,String>>();
             for (int i = 1; i <= count; i++) {
             	Map<String, Object> column = new HashMap<String, Object>();
-            	column.put("columnName", rsMataData.getColumnName(i));
+            	String tableName = rsMataData.getTableName(i);
+            	Map<String, String> columnComments = null;
+            	if(!tableColumnRemarks.containsKey(tableName)) {
+            		getColumnComments(metaData,tableName,tableColumnRemarks);
+            	}
+            	columnComments = tableColumnRemarks.get(tableName);
+            	String columnName = rsMataData.getColumnName(i);
+            	column.put("columnName", columnName);
             	column.put("name", rsMataData.getColumnLabel(i));
             	column.put("dataType", rsMataData.getColumnTypeName(i));
             	column.put("width", rsMataData.getColumnDisplaySize(i));
+            	column.put("className", rsMataData.getColumnClassName(i));
+            	column.put("remark", columnComments.get(columnName));
             	result.add(column);
             }
         } catch (final SQLException ex) {
@@ -495,13 +545,24 @@ public class JdbcUtils {
 			{
 				sqlText = JdbcUtils.processSqlDynamicParam(sqlText);
 				for (int i = 0; i < jsonArray.size(); i++) {
+					String paramType = jsonArray.getJSONObject(i).getString("paramType");
 					String paramDefault = jsonArray.getJSONObject(i).getString("paramDefault");
 					String paramCode = jsonArray.getJSONObject(i).getString("paramCode");
+					String dateFormat = jsonArray.getJSONObject(i).getString("dateFormat");
 					if(StringUtil.isNullOrEmpty(paramDefault))
 					{
 						throw new BizException(StatusCode.FAILURE, "当数据库为influxdb时，参数中的默认值必须填写。");
 					}
-					params.put(paramCode, paramDefault);
+					if("date".equals(paramType.toLowerCase()))
+					{
+						params.put(paramCode, StringUtil.isNotEmpty(dateFormat)?DateUtil.getNow(dateFormat):DateUtil.getNow(DateUtil.FORMAT_LONOGRAM));
+					}else if("mutiselect".equals(paramType.toLowerCase()))
+					{
+						params.put(paramCode, new JSONArray());
+					}
+					else {
+						params.put(paramCode, paramDefault);
+					}
 				}
 			}
 		}
@@ -660,6 +721,7 @@ public class JdbcUtils {
                 	column.put("name", rsMataData.getColumnLabel(i));
                 	column.put("dataType", rsMataData.getColumnTypeName(i));
                 	column.put("width", rsMataData.getColumnDisplaySize(i));
+                	column.put("className", rsMataData.getColumnClassName(i));
                 	result.add(column);
                 }                   
 	    	}else {
@@ -735,6 +797,7 @@ public class JdbcUtils {
 				e.printStackTrace();
 			}
 		}
+		System.err.println("解析后的sql："+sql);
 	    return sql;
 	} 
 	
@@ -939,19 +1002,51 @@ public class JdbcUtils {
 	public static List<Map<String, String>> parseDatabaseTables(DataSourceConfig dataSourceConfig){
 		List<Map<String, String>> result = new ArrayList<>();
 		try {
-			Class.forName(dataSourceConfig.getDriverClass());//加载驱动类
-			Connection conn=DriverManager.getConnection(dataSourceConfig.getJdbcUrl(),dataSourceConfig.getUser(),dataSourceConfig.getPassword());//用参数得到连接对象
-			DatabaseMetaData metaData = conn.getMetaData();
-			String schema = null;
-			if(!DriverClassEnum.SQLSERVER.getName().equals(dataSourceConfig.getDriverClass())) {
-				schema = conn.getSchema();
-			}
-			ResultSet tables = metaData.getTables(conn.getCatalog(), schema, null, new String[]{"TABLE"});
-			while (tables.next()) {
-				Map<String, String> map = new HashMap<>();
-				map.put("name", tables.getString("TABLE_NAME"));
-				map.put("value", tables.getString("TABLE_NAME"));
-				result.add(map);
+			if (dataSourceConfig.getDriverClass().equals(DriverClassEnum.INFLUXDB.getName())) {
+				String url = dataSourceConfig.getJdbcUrl().substring(0, dataSourceConfig.getJdbcUrl().lastIndexOf("/"));
+				String databaseName = dataSourceConfig.getJdbcUrl().substring(dataSourceConfig.getJdbcUrl().lastIndexOf("/") + 1, dataSourceConfig.getJdbcUrl().length());
+				// 创建InfluxDB连接
+				InfluxDB influxDB = InfluxDBFactory.connect(url, dataSourceConfig.getUser(), dataSourceConfig.getPassword());
+				influxDB.setDatabase(databaseName);
+				// 执行查询以获取所有表（measurements）
+				String queryStr = "SHOW MEASUREMENTS";
+				Query query = new Query(queryStr, databaseName);
+				QueryResult queryResult = influxDB.query(query);
+				// 处理查询结果
+				if (queryResult.hasError()) {
+					System.out.println("Error: " + queryResult.getError());
+				} else {
+					List<QueryResult.Result> results = queryResult.getResults();
+					for (QueryResult.Result re : results) {
+						List<QueryResult.Series> seriesList = re.getSeries();
+						for (QueryResult.Series series : seriesList) {
+							List<List<Object>> values = series.getValues();
+							for (List<Object> value : values) {
+								Map<String, String> map = new HashMap<>();
+								map.put("name", (String) value.get(0));
+								map.put("value", (String) value.get(0));
+								result.add(map);
+							}
+						}
+					}
+				}
+				// 关闭连接
+				influxDB.close();
+			}else{
+				Class.forName(dataSourceConfig.getDriverClass());//加载驱动类
+				Connection conn=DriverManager.getConnection(dataSourceConfig.getJdbcUrl(),dataSourceConfig.getUser(),dataSourceConfig.getPassword());//用参数得到连接对象
+				DatabaseMetaData metaData = conn.getMetaData();
+				String schema = null;
+				if(!DriverClassEnum.SQLSERVER.getName().equals(dataSourceConfig.getDriverClass())) {
+					schema = conn.getSchema();
+				}
+				ResultSet tables = metaData.getTables(conn.getCatalog(), schema, null, new String[]{"TABLE"});
+				while (tables.next()) {
+					Map<String, String> map = new HashMap<>();
+					map.put("name", tables.getString("TABLE_NAME"));
+					map.put("value", tables.getString("TABLE_NAME"));
+					result.add(map);
+				}
 			}
 		} catch (Exception e) {
 			throw new BizException(StatusCode.FAILURE, "数据库连接测试失败，失败原因："+e.getMessage());
@@ -1017,6 +1112,34 @@ public class JdbcUtils {
 	public static TDengineConnection getTDengineConnection(final TDengineConfig  config) throws Exception{
 		TDengineConnection tDengineConnection = new TDengineConnection(config.getJdbcUrl(), config.getUsername(), config.getPassword());
 		return tDengineConnection;
+	}
+	
+	public static Map<String, String> parseMetaDataColumnsJavaType(DataSource dataSource,String sqlText,int dataSourceType) {
+		Map<String, String> result = new HashMap<>();
+		Connection conn = null;
+	    Statement stmt = null;
+	    ResultSet rs = null;
+	    try {
+	    	conn = dataSource.getConnection();
+	        stmt = conn.createStatement();
+			sqlText = VelocityUtil.parseInfluxdb(sqlText, null,"influxdb");
+	        rs = stmt.executeQuery(JdbcUtils.preprocessSqlText(sqlText,dataSourceType,null));
+            final ResultSetMetaData rsMataData = rs.getMetaData();
+            final int count = rsMataData.getColumnCount();
+            for (int i = 1; i <= count; i++) {
+            	result.put(rsMataData.getColumnName(i), rsMataData.getColumnClassName(i));
+            }
+        } catch (final SQLException ex) {
+        	Collection<DataSource> datasources = dataSourceMap.values();
+        	while(datasources.contains(dataSource))
+        	{
+        		datasources.remove(dataSource);
+        	}
+            throw new BizException(StatusCode.FAILURE,MessageUtil.getValue("error.sql", new String[] {ex.getMessage()}));
+        } finally {
+            JdbcUtils.releaseJdbcResource(conn, stmt, rs);
+        }
+	    return result;
 	}
 	
 	public static void main(String[] args) {

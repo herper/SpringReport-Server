@@ -19,6 +19,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
@@ -57,6 +58,7 @@ import com.springreport.dto.reporttpldataset.ReportTplDatasetDto;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -68,6 +70,7 @@ import javax.sql.DataSource;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.springreport.enums.DatasetTypeEnum;
+import com.springreport.enums.DefaultDateTypeEnum;
 import com.springreport.enums.DelFlagEnum;
 import com.springreport.enums.ParamTypeEnum;
 import com.springreport.enums.ProcedureParamTypeEnum;
@@ -104,6 +107,9 @@ public class ReportTplDatasetServiceImpl extends ServiceImpl<ReportTplDatasetMap
 	@Autowired
 	@Lazy
 	private IReportTplDatasetGroupService iReportTplDatasetGroupService;
+	
+	@Value("${merchantmode}")
+    private Integer merchantmode;
 	
 	/** 
 	* @Title: tablePagingQuery 
@@ -241,6 +247,20 @@ public class ReportTplDatasetServiceImpl extends ServiceImpl<ReportTplDatasetMap
 		queryWrapper.eq("tpl_id", dataset.getTplId());
 		queryWrapper.eq("del_flag", DelFlagEnum.UNDEL.getCode());
 		List<ReportTplDataset> reportTplDatasets = this.list(queryWrapper);
+		if(reportTplDatasets == null) {
+			reportTplDatasets = new ArrayList<>();
+		}
+		queryWrapper = new QueryWrapper<ReportTplDataset>();
+		if(this.merchantmode == YesNoEnum.YES.getCode()) {
+			queryWrapper.eq("merchant_no", dataset.getMerchantNo());
+		}
+		queryWrapper.eq("is_common", YesNoEnum.YES.getCode());
+		queryWrapper.eq("common_type", dataset.getCommonType());
+		queryWrapper.eq("del_flag", DelFlagEnum.UNDEL.getCode());
+		List<ReportTplDataset> commonDatasets = this.list(queryWrapper);
+		if(commonDatasets != null) {
+			reportTplDatasets.addAll(commonDatasets);
+		}
 		if(reportTplDatasets != null && reportTplDatasets.size() > 0)
 		{
 			ReportDatasetDto reportDatasetDto = null;
@@ -488,8 +508,21 @@ public class ReportTplDatasetServiceImpl extends ServiceImpl<ReportTplDatasetMap
 			if (exist != null) {
 				throw new BizException(StatusCode.FAILURE, MessageUtil.getValue("error.exist", new String[] {"数据集名称"}));
 			}
+			queryWrapper = new QueryWrapper<ReportTplDataset>();
+			if(this.merchantmode == YesNoEnum.YES.getCode()) {
+				queryWrapper.eq("merchant_no", reportTplDataset.getMerchantNo());
+			}
+			queryWrapper.eq("is_common", YesNoEnum.YES.getCode());
+			queryWrapper.eq("common_type", reportTplDataset.getCommonType());
+			queryWrapper.eq("del_flag", DelFlagEnum.UNDEL.getCode());
+			queryWrapper.eq("dataset_name", reportTplDataset.getDatasetName());
+			exist = this.getOne(queryWrapper,false);
+			if (exist != null) {
+				throw new BizException(StatusCode.FAILURE, MessageUtil.getValue("error.exist", new String[] {"数据集名称"}));
+			}
 			//新增数据集
 			ReportTplDataset insertData = new ReportTplDataset();
+			insertData.setMerchantNo(reportTplDataset.getMerchantNo());
 			insertData.setDatasetName(reportTplDataset.getDatasetName());
 			insertData.setDatasetType(reportTplDataset.getDatasetType());
 			insertData.setTplId(reportTplDataset.getTplId());
@@ -506,6 +539,12 @@ public class ReportTplDatasetServiceImpl extends ServiceImpl<ReportTplDatasetMap
 			insertData.setTotalAttr(reportTplDataset.getTotalAttr());
 			insertData.setGroupId(reportTplDataset.getGroupId());
 			insertData.setSubParamAttrs(reportTplDataset.getSubParamAttrs());
+			insertData.setIsCommon(reportTplDataset.getIsCommon());
+			insertData.setIsConvert(reportTplDataset.getIsConvert());
+			insertData.setHeaderName(reportTplDataset.getHeaderName());
+			insertData.setValueField(reportTplDataset.getValueField());
+			insertData.setFixedColumn(reportTplDataset.getFixedColumn());
+			insertData.setCommonType(reportTplDataset.getCommonType());
 			this.save(insertData);
 			result.setId(insertData.getId());
 		}else {
@@ -546,16 +585,27 @@ public class ReportTplDatasetServiceImpl extends ServiceImpl<ReportTplDatasetMap
 	 * @date 2021-05-26 06:17:47 
 	 */
 	@Override
-	public Map<String, Object> getTplDatasetAndDatasource(Long tplId, String datasetName) throws Exception {
+	public Map<String, Object> getTplDatasetAndDatasource(Long tplId, String datasetName,String merchantNo) throws Exception {
 		Map<String, Object> result = new HashMap<String, Object>();
 		QueryWrapper<ReportTplDataset> datasetQueryWrapper = new QueryWrapper<ReportTplDataset>();
 		datasetQueryWrapper.eq("tpl_id", tplId);
 		datasetQueryWrapper.eq("dataset_name", datasetName);
+		datasetQueryWrapper.eq("is_common", YesNoEnum.NO.getCode());
 		datasetQueryWrapper.eq("del_flag", DelFlagEnum.UNDEL.getCode());
 		ReportTplDataset reportTplDataset = this.getOne(datasetQueryWrapper,false);
 		if(reportTplDataset == null)
 		{
-			throw new BizException(StatusCode.FAILURE, MessageUtil.getValue("error.notexist",new String[] {"数据集"+datasetName}));
+			datasetQueryWrapper = new QueryWrapper<ReportTplDataset>();
+			if(this.merchantmode == YesNoEnum.YES.getCode()) {
+				datasetQueryWrapper.eq("merchant_no", merchantNo);
+			}
+			datasetQueryWrapper.eq("dataset_name", datasetName);
+			datasetQueryWrapper.eq("is_common", YesNoEnum.YES.getCode());
+			datasetQueryWrapper.eq("del_flag", DelFlagEnum.UNDEL.getCode());
+			reportTplDataset = this.getOne(datasetQueryWrapper,false);
+			if(reportTplDataset == null) {
+				throw new BizException(StatusCode.FAILURE, MessageUtil.getValue("error.notexist",new String[] {"数据集"+datasetName}));
+			}
 		}
 		this.datasourceProcess(result, reportTplDataset);
 		return result;
@@ -631,10 +681,11 @@ public class ReportTplDatasetServiceImpl extends ServiceImpl<ReportTplDatasetMap
 	 * @see com.caiyang.api.reporttpldataset.IReportTplDatasetService#getReportDatasetsParam(com.caiyang.entity.reporttpldataset.ReportTplDataset) 
 	 * @author caiyang
 	 * @throws ParseException 
+	 * @throws JSQLParserException 
 	 * @date 2021-06-03 02:25:17 
 	 */
 	@Override
-	public Map<String, Object> getReportDatasetsParam(ReportTplDatasetDto reportTplDataset) throws ParseException {
+	public Map<String, Object> getReportDatasetsParam(ReportTplDatasetDto reportTplDataset) throws Exception {
 		Map<String, Object> resultMap = new HashMap<String, Object>();
 		Map<String, Object> paginationMap = new HashMap<>();//分页参数
 		List<String> apiHeaders = new ArrayList<>();//api请求的headers
@@ -793,6 +844,54 @@ public class ReportTplDatasetServiceImpl extends ServiceImpl<ReportTplDatasetMap
 									String currentDate = DateUtil.getNow(StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
 									params.get(j).setParamDefault(currentDate);
 									params.get(j).setDateFormat(StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
+								}else if(DefaultDateTypeEnum.WF.getCode().equals(StringUtil.trim(params.get(j).getParamDefault()).toLowerCase()))
+								{//本周第一天
+									String currentDate = DateUtil.getWeekStart();
+									currentDate = DateUtil.date2String(DateUtil.string2Date(currentDate), StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
+									params.get(j).setParamDefault(currentDate);
+									params.get(j).setDateFormat(StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
+								}else if(DefaultDateTypeEnum.WL.getCode().equals(StringUtil.trim(params.get(j).getParamDefault()).toLowerCase()))
+								{//本周最后一天
+									String currentDate = DateUtil.getWeekEnd();
+									currentDate = DateUtil.date2String(DateUtil.string2Date(currentDate), StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
+									params.get(j).setParamDefault(currentDate);
+									params.get(j).setDateFormat(StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
+								}else if(DefaultDateTypeEnum.MF.getCode().equals(StringUtil.trim(params.get(j).getParamDefault()).toLowerCase()))
+								{//本月第一天
+									String currentDate = DateUtil.getMonthStart();
+									currentDate = DateUtil.date2String(DateUtil.string2Date(currentDate), StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
+									params.get(j).setParamDefault(currentDate);
+									params.get(j).setDateFormat(StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
+								}else if(DefaultDateTypeEnum.ML.getCode().equals(StringUtil.trim(params.get(j).getParamDefault()).toLowerCase()))
+								{//本月最后一天
+									String currentDate = DateUtil.getMonthEnd();
+									currentDate = DateUtil.date2String(DateUtil.string2Date(currentDate), StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
+									params.get(j).setParamDefault(currentDate);
+									params.get(j).setDateFormat(StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
+								}else if(DefaultDateTypeEnum.SF.getCode().equals(StringUtil.trim(params.get(j).getParamDefault()).toLowerCase()))
+								{//本季度第一天
+									String currentDate = DateUtil.getQuarterStart(new Date());
+									currentDate = DateUtil.date2String(DateUtil.string2Date(currentDate), StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
+									params.get(j).setParamDefault(currentDate);
+									params.get(j).setDateFormat(StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
+								}else if(DefaultDateTypeEnum.SL.getCode().equals(StringUtil.trim(params.get(j).getParamDefault()).toLowerCase()))
+								{//本季度最后一天
+									String currentDate = DateUtil.getQuarterEnd(new Date());
+									currentDate = DateUtil.date2String(DateUtil.string2Date(currentDate), StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
+									params.get(j).setParamDefault(currentDate);
+									params.get(j).setDateFormat(StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
+								}else if(DefaultDateTypeEnum.YF.getCode().equals(StringUtil.trim(params.get(j).getParamDefault()).toLowerCase()))
+								{//本年度第一天
+									String currentDate = DateUtil.getYearStart();
+									currentDate = DateUtil.date2String(DateUtil.string2Date(currentDate), StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
+									params.get(j).setParamDefault(currentDate);
+									params.get(j).setDateFormat(StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
+								}else if(DefaultDateTypeEnum.YL.getCode().equals(StringUtil.trim(params.get(j).getParamDefault()).toLowerCase()))
+								{//本年度最后一天
+									String currentDate = DateUtil.getYearEnd();
+									currentDate = DateUtil.date2String(DateUtil.string2Date(currentDate), StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
+									params.get(j).setParamDefault(currentDate);
+									params.get(j).setDateFormat(StringUtil.isNotEmpty(params.get(j).getDateFormat())?params.get(j).getDateFormat():DateUtil.FORMAT_LONOGRAM);
 								}else {
 									if(CheckUtil.isNumber(params.get(j).getParamDefault()))
 									{
@@ -837,7 +936,11 @@ public class ReportTplDatasetServiceImpl extends ServiceImpl<ReportTplDatasetMap
 								DataSourceConfig dataSourceConfig = new DataSourceConfig(reportDatasource.getId(), reportDatasource.getDriverClass(), reportDatasource.getJdbcUrl(), reportDatasource.getUserName(), reportDatasource.getPassword(), null);
 								//获取数据源
 								DataSource dataSource = JdbcUtils.getDataSource(dataSourceConfig);
-								List<Map<String, Object>> list = ReportDataUtil.getSelectData(dataSource, params.get(j).getSelectContent());
+								String sql = params.get(j).getSelectContent();
+								if(params.get(j).getIsRelyOnParams().intValue() == 1) {
+									sql = JdbcUtils.processSqlParams(sql, new HashMap<>());
+								}
+								List<Map<String, Object>> list = ReportDataUtil.getSelectData(dataSource, sql);
 								List<Map<String, Object>> resultList = new ArrayList<>();
 								if(!ListUtil.isEmpty(list)) {
 									Map<String, Map<String, Object>> entityMap = new HashMap<>();
@@ -1265,6 +1368,7 @@ public class ReportTplDatasetServiceImpl extends ServiceImpl<ReportTplDatasetMap
 			UpdateWrapper<ReportTplDataset> updateWrapper = new UpdateWrapper<>();
 			updateWrapper.eq("tpl_id", dataset.getTplId());
 			updateWrapper.eq("del_flag", DelFlagEnum.UNDEL.getCode());
+			updateWrapper.eq("is_common", YesNoEnum.NO.getCode());
 			ReportTplDataset update = new ReportTplDataset();
 			update.setGroupId(reportTplDatasetGroup.getId());
 			this.update(update, updateWrapper);
@@ -1274,6 +1378,10 @@ public class ReportTplDatasetServiceImpl extends ServiceImpl<ReportTplDatasetMap
 		List<ReportDatasetDto> datasets = new ArrayList<ReportDatasetDto>();
 		QueryWrapper<ReportTplDataset> queryWrapper = new QueryWrapper<ReportTplDataset>();
 		queryWrapper.eq("tpl_id", dataset.getTplId());
+		if(this.merchantmode == YesNoEnum.YES.getCode()) {
+			queryWrapper.eq("merchant_no", dataset.getMerchantNo());
+		}
+		queryWrapper.eq("is_common", YesNoEnum.NO.getCode());
 		queryWrapper.eq("del_flag", DelFlagEnum.UNDEL.getCode());
 		List<ReportTplDataset> reportTplDatasets = this.list(queryWrapper);
 		if(reportTplDatasets != null && reportTplDatasets.size() > 0)
@@ -1298,6 +1406,29 @@ public class ReportTplDatasetServiceImpl extends ServiceImpl<ReportTplDatasetMap
 				}
 			}
 		}
+		//获取公共数据集
+		queryWrapper = new QueryWrapper<ReportTplDataset>();
+		if(this.merchantmode == YesNoEnum.YES.getCode()) {
+			queryWrapper.eq("merchant_no", dataset.getMerchantNo());
+		}
+		queryWrapper.eq("is_common", YesNoEnum.YES.getCode());
+		queryWrapper.eq("common_type", dataset.getCommonType());
+		queryWrapper.eq("del_flag", DelFlagEnum.UNDEL.getCode());
+		List<ReportTplDataset> commonReportTplDatasets = this.list(queryWrapper);
+		ReportTplDatasetGroup commonGroup = new ReportTplDatasetGroup();
+		commonGroup.setGroupName("公共数据集分组");
+		commonGroup.setId(0L);
+		List<ReportDatasetDto> commonDatasets = new ArrayList<ReportDatasetDto>();
+		if(ListUtil.isNotEmpty(commonReportTplDatasets)) {
+			ReportDatasetDto reportDatasetDto = null;
+			for (int i = 0; i < commonReportTplDatasets.size(); i++) {
+				reportDatasetDto = new ReportDatasetDto();
+				BeanUtils.copyProperties(commonReportTplDatasets.get(i), reportDatasetDto);
+				commonDatasets.add(reportDatasetDto);
+			}
+			commonGroup.setData(commonDatasets);
+		}
+		datasetGroups.add(commonGroup);
 		return datasetGroups;
 	}
 }

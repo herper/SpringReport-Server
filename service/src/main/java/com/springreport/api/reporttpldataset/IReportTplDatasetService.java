@@ -138,7 +138,7 @@ public interface IReportTplDatasetService extends IService<ReportTplDataset> {
 	 * @throws Exception 
 	 * @date 2021-05-26 06:17:03 
 	 */ 
-	Map<String, Object> getTplDatasetAndDatasource(Long tplId,String datasetName) throws SQLException, Exception;
+	Map<String, Object> getTplDatasetAndDatasource(Long tplId,String datasetName,String merchantNo) throws SQLException, Exception;
 	
 	/**  
 	 * @MethodName: getTplDatasetAndDatasource
@@ -161,7 +161,7 @@ public interface IReportTplDatasetService extends IService<ReportTplDataset> {
 	 * @throws ParseException 
 	 * @date 2021-06-03 02:24:46 
 	 */ 
-	Map<String, Object> getReportDatasetsParam(ReportTplDatasetDto reportTplDataset) throws ParseException;
+	Map<String, Object> getReportDatasetsParam(ReportTplDatasetDto reportTplDataset) throws Exception;
 	
 	/**  
 	 * @Title: getTplDatasetColumns
