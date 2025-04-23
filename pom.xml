@@ -19,7 +19,6 @@
 		<spring-boot.version>2.7.12</spring-boot.version>
 		<mysql.version>8.0.33</mysql.version>
 		<mybatis-plus.version>3.5.5</mybatis-plus.version>
-		<!-- <shardingsphere.version>4.1.0</shardingsphere.version> -->
 		<druid.version>1.2.23</druid.version>
 		<lang3.version>3.14.0</lang3.version>
 		<aspectj.version>1.9.22</aspectj.version>

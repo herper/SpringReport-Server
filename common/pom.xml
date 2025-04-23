@@ -7,12 +7,10 @@
   </parent>
   <artifactId>common</artifactId>
   <dependencies>
-	   <dependency>
+     <dependency>
             <groupId>com.aspose</groupId>
             <artifactId>aspose-words</artifactId>
             <version>21.1</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/aspose-words-21.1-jdk17.jar</systemPath>
         </dependency>
 	</dependencies>
 	<build>
