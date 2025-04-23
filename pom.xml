@@ -14,7 +14,7 @@
 		<module>common</module>
 	</modules>
 	<properties>
-		<revision>2.3.2</revision>
+		<revision>2.3.4</revision>  <!-- 修正为与version一致 -->
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<spring-boot.version>2.7.12</spring-boot.version>
 		<mysql.version>8.0.33</mysql.version>
@@ -245,11 +245,7 @@
 			<artifactId>docx4j-export-fo</artifactId>
 			<version>${docx4j.version}</version>
 		</dependency>
-		<dependency>
-			<groupId>org.docx4j</groupId>
-			<artifactId>docx4j-export-fo</artifactId>
-			<version>${docx4j.version}</version>
-		</dependency>
+		<!-- 删除重复的docx4j-export-fo依赖 -->
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-databind</artifactId>
@@ -381,18 +377,7 @@
 				<directory>src/main/resources</directory>
 				<filtering>true</filtering>
 			</resource>
-			 <resource>
-                <directory>${project.basedir}/lib</directory>
-                <targetPath>BOOT-INF/lib/</targetPath>
-            </resource>
-		</resources>
-	<build>
-		<resources>
 			<resource>
-				<directory>src/main/resources</directory>
-				<filtering>true</filtering>
-			</resource>
-			 <resource>
                 <directory>${project.basedir}/lib</directory>
                 <targetPath>BOOT-INF/lib/</targetPath>
             </resource>
