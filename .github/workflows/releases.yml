@@ -6,7 +6,7 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-name: Build and Publish Release  # 工作流名称
+name: SpringReport-Server Build and Publish Release  # 工作流名称
 
 on:
   push:
@@ -48,7 +48,7 @@ jobs:
       - name: Create Tag
         id: create_tag
         run: |
-          TAG_NAME="v$(TZ=Asia/Shanghai date +%Y%m%d%H%M%S)"
+          TAG_NAME="v$(TZ=Asia/Shanghai date +%Y%m%d)"
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_OUTPUT
           git config --global user.name "JunwWang"
           git config --global user.email "junwwang@hotmail.com"
