@@ -35,6 +35,7 @@ import com.alibaba.druid.pool.DruidDataSource;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.mongodb.client.MongoClient;
 import com.springreport.base.DataSourceConfig;
 import com.springreport.base.EsDataSourceConfig;
 import com.springreport.base.InfluxDbDataSourceConfig;
@@ -207,11 +208,11 @@ public class JdbcUtils {
 	*/
 	public static String preprocessSqlText(String sqlText,int dataSourceType,Map<String, Object> params) throws SQLException {
         sqlText = StringUtils.stripEnd(sqlText.trim(), ";");
-        Pattern paramPattern=Pattern.compile("\\$\\s*\\{(.*?)}");
-		Matcher parammatcher=paramPattern.matcher(sqlText);
-		while(parammatcher.find()){
-			sqlText = parammatcher.replaceAll("''");
-		}
+//        Pattern paramPattern=Pattern.compile("\\$\\s*\\{(.*?)}");
+//		Matcher parammatcher=paramPattern.matcher(sqlText);
+//		while(parammatcher.find()){
+//			sqlText = parammatcher.replaceAll("''");
+//		}
 		sqlText = MybatisTemplateSqlExcutor.parseSql(sqlText,params);
 		System.err.println("解析后的sql:"+sqlText);
 		if(DriverClassEnum.MYSQL.getCode().intValue() == dataSourceType || DriverClassEnum.POSTGRESQL.getCode().intValue() == dataSourceType
@@ -302,6 +303,7 @@ public class JdbcUtils {
 						String paramDefault = jsonArray.getJSONObject(i).getString("paramDefault");
 						String paramCode = jsonArray.getJSONObject(i).getString("paramCode");
 						String dateFormat = jsonArray.getJSONObject(i).getString("dateFormat");
+						dateFormat = procesDataFormat(dateFormat);
 						if(StringUtil.isNotEmpty(paramType))
 						{
 							if("date".equals(paramType.toLowerCase()))
@@ -349,7 +351,9 @@ public class JdbcUtils {
             	column.put("dataType", rsMataData.getColumnTypeName(i));
             	column.put("width", rsMataData.getColumnDisplaySize(i));
             	column.put("className", rsMataData.getColumnClassName(i));
-            	column.put("remark", columnComments.get(columnName));
+            	if(columnComments != null) {
+            		column.put("remark", columnComments.get(columnName));
+            	}
             	result.add(column);
             }
         } catch (final SQLException ex) {
@@ -368,14 +372,18 @@ public class JdbcUtils {
 	/**获取字段注解*/
     private static Map<String, String> getColumnComments(DatabaseMetaData metaData, String tableName,Map<String, Map<String, String>> tableColumnRemarks) throws SQLException {
         Map<String, String> columnComments = new HashMap<>();
-        try (ResultSet columns = metaData.getColumns(null, null, tableName, null)) {
-            while (columns.next()) {
-                String columnName = columns.getString("COLUMN_NAME");
-                String columnComment = columns.getString("REMARKS");
-                columnComments.put(columnName, columnComment);
+        try {
+        	try (ResultSet columns = metaData.getColumns(null, null, tableName, null)) {
+                while (columns.next()) {
+                    String columnName = columns.getString("COLUMN_NAME");
+                    String columnComment = columns.getString("REMARKS");
+                    columnComments.put(columnName, columnComment);
+                }
             }
-        }
-        tableColumnRemarks.put(tableName, columnComments);
+            tableColumnRemarks.put(tableName, columnComments);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
         return columnComments;
     }
 	
@@ -400,6 +408,7 @@ public class JdbcUtils {
 						String paramDefault = jsonArray.getJSONObject(i).getString("paramDefault");
 						String paramCode = jsonArray.getJSONObject(i).getString("paramCode");
 						String dateFormat = jsonArray.getJSONObject(i).getString("dateFormat");
+						dateFormat = procesDataFormat(dateFormat);
 						if(StringUtil.isNotEmpty(paramType))
 						{
 							if("date".equals(paramType.toLowerCase()))
@@ -481,6 +490,7 @@ public class JdbcUtils {
 						String paramDefault = jsonArray.getJSONObject(i).getString("paramDefault");
 						String paramCode = jsonArray.getJSONObject(i).getString("paramCode");
 						String dateFormat = jsonArray.getJSONObject(i).getString("dateFormat");
+						dateFormat = procesDataFormat(dateFormat);
 						if("date".equals(paramType.toLowerCase()))
 						{
 							params.put(paramCode, StringUtil.isNotEmpty(dateFormat)?DateUtil.getNow(dateFormat):DateUtil.getNow(DateUtil.FORMAT_LONOGRAM));
@@ -549,6 +559,7 @@ public class JdbcUtils {
 					String paramDefault = jsonArray.getJSONObject(i).getString("paramDefault");
 					String paramCode = jsonArray.getJSONObject(i).getString("paramCode");
 					String dateFormat = jsonArray.getJSONObject(i).getString("dateFormat");
+					dateFormat = procesDataFormat(dateFormat);
 					if(StringUtil.isNullOrEmpty(paramDefault))
 					{
 						throw new BizException(StatusCode.FAILURE, "当数据库为influxdb时，参数中的默认值必须填写。");
@@ -591,6 +602,27 @@ public class JdbcUtils {
 			}
 		}
 		return result;
+	}
+	
+	private static String procesDataFormat(String dateFormat) {
+		if("YYYY-MM-DD".equals(dateFormat))
+		{
+			dateFormat = DateUtil.FORMAT_LONOGRAM;
+		}else if("YYYY-MM".equals(dateFormat))
+		{
+			dateFormat = DateUtil.FORMAT_YEARMONTH;
+		}else if("YYYY-MM-DD HH:mm".equals(dateFormat))
+		{
+			dateFormat = DateUtil.FORMAT_WITHOUTSECONDS;
+		}else if("YYYY".equals(dateFormat))
+		{
+			dateFormat = DateUtil.FORMAT_YEAR;
+		}else {
+			if(StringUtil.isNullOrEmpty(dateFormat)) {
+				dateFormat = DateUtil.FORMAT_LONOGRAM;
+			}
+		}
+		return dateFormat;
 	}
 	
 	public static List<Map<String, Object>> parseProcedureColumns(DataSource dataSource,String sqlText,int dataSourceType,JSONArray inParams,JSONArray outParams,UserInfoDto userInfoDto){
@@ -674,22 +706,7 @@ public class JdbcUtils {
     				}else if(InParamTypeEnum.DATE.getCode().equals(jsonObject.getString("paramType")))
     				{
     					String dateFormat = jsonObject.getString("dateFormat");
-    					if(StringUtil.isNullOrEmpty(dateFormat)) {
-    						dateFormat = DateUtil.FORMAT_LONOGRAM;
-    					}
-    					if("YYYY-MM-DD".equals(dateFormat))
-						{
-							dateFormat = DateUtil.FORMAT_LONOGRAM;
-						}else if("YYYY-MM".equals(dateFormat))
-						{
-							dateFormat = DateUtil.FORMAT_YEARMONTH;
-						}else if("YYYY-MM-DD HH:mm".equals(dateFormat))
-						{
-							dateFormat = DateUtil.FORMAT_WITHOUTSECONDS;
-						}else if("YYYY".equals(dateFormat))
-						{
-							dateFormat = DateUtil.FORMAT_YEAR;
-						}
+    					dateFormat = procesDataFormat(dateFormat);
     					String defaultDate = "";
     					try {
     						defaultDate = DateUtil.getDefaultDate(String.valueOf(jsonObject.get("paramDefault")),dateFormat);
@@ -851,7 +868,7 @@ public class JdbcUtils {
 	 */ 
 	public static String getPaginationSql(String sql,int dataSourceType,int pageCount,int currentPage) throws JSQLParserException {
 		sql = sql.replaceAll(";", "");
-		if(DriverClassEnum.MYSQL.getCode().intValue() == dataSourceType || DriverClassEnum.DAMENG.getCode().intValue() == dataSourceType || DriverClassEnum.DORIS.getCode().intValue() == dataSourceType)
+ 		if(DriverClassEnum.MYSQL.getCode().intValue() == dataSourceType || DriverClassEnum.DAMENG.getCode().intValue() == dataSourceType || DriverClassEnum.DORIS.getCode().intValue() == dataSourceType)
 		{
 			sql = sql + " limit " + (currentPage-1)*pageCount + "," + pageCount;
 		}else if(DriverClassEnum.ORACLE.getCode().intValue() == dataSourceType)
@@ -861,7 +878,7 @@ public class JdbcUtils {
 		}else if(DriverClassEnum.SQLSERVER.getCode().intValue() == dataSourceType) 
 		{
 			sql = "select row_number () over (order by rand()) page_row_number,* from (" + sql + ") as page_table_alias";
-			sql = "select top "+pageCount + " * from (" + sql + ") as page_table_alias where page_row_number > " + (currentPage-1)*pageCount + "order by page_row_number";
+			sql = "select top "+pageCount + " * from (" + sql + ") as page_table_alias where page_row_number > " + (currentPage-1)*pageCount + " order by page_row_number";
 		}else if(DriverClassEnum.POSTGRESQL.getCode().intValue() == dataSourceType || DriverClassEnum.KINGBASE.getCode().intValue() == dataSourceType || DriverClassEnum.HIGODB.getCode().intValue() == dataSourceType) {
 			sql = sql + " limit " + pageCount + " offset " + (currentPage-1)*pageCount;
 		}else if(DriverClassEnum.INFLUXDB.getCode().intValue() == dataSourceType || DriverClassEnum.TDENGINE.getCode().intValue() == dataSourceType) {
@@ -1032,6 +1049,22 @@ public class JdbcUtils {
 				}
 				// 关闭连接
 				influxDB.close();
+			}else if (dataSourceConfig.getDriverClass().equals(DriverClassEnum.MONGODB.getName())) {
+				result = MongoClientUtil.getCollectionNames(dataSourceConfig.getJdbcUrl());
+			}else if (dataSourceConfig.getDriverClass().equals(DriverClassEnum.TDENGINE.getName())) {
+				Class.forName(dataSourceConfig.getDriverClass());//加载驱动类
+				Connection conn=DriverManager.getConnection(dataSourceConfig.getJdbcUrl(),dataSourceConfig.getUser(),dataSourceConfig.getPassword());//用参数得到连接对象
+				Statement stmt = conn.createStatement();
+				String sql = "SHOW TABLES";
+	            try (ResultSet rs = stmt.executeQuery(sql)) {
+	                while (rs.next()) {
+	                    String tableName = rs.getString("table_name");
+	                    Map<String, String> map = new HashMap<>();
+	                    map.put("name", tableName);
+						map.put("value", tableName);
+						result.add(map);
+	                }
+	            }
 			}else{
 				Class.forName(dataSourceConfig.getDriverClass());//加载驱动类
 				Connection conn=DriverManager.getConnection(dataSourceConfig.getJdbcUrl(),dataSourceConfig.getUser(),dataSourceConfig.getPassword());//用参数得到连接对象
@@ -1099,6 +1132,18 @@ public class JdbcUtils {
 		return result;
 	}
 	
+	public static boolean mongoTest(String url)
+	{
+		boolean result = true;
+		try {
+			MongoClientUtil.mongoConnectionTest(url);
+		} catch (Exception e) {
+			e.printStackTrace();
+			result = false;
+		}
+		return result;
+	}
+	
 	/**  
 	 * @MethodName: getTDengineConnection
 	 * @Description: 获取TDengineConnection
@@ -1140,6 +1185,64 @@ public class JdbcUtils {
             JdbcUtils.releaseJdbcResource(conn, stmt, rs);
         }
 	    return result;
+	}
+	
+	public static Map<String, Object> getDefaultParams(String sqlParams,UserInfoDto userInfoDto){
+		 Map<String, Object> params = new HashMap<>();
+		 if(StringUtil.isNotEmpty(sqlParams))
+			{
+				JSONArray jsonArray = JSONArray.parseArray(sqlParams);
+				if(!ListUtil.isEmpty(jsonArray))
+				{
+					for (int i = 0; i < jsonArray.size(); i++) {
+						String paramType = jsonArray.getJSONObject(i).getString("paramType");
+						String paramDefault = jsonArray.getJSONObject(i).getString("paramDefault");
+						String paramCode = jsonArray.getJSONObject(i).getString("paramCode");
+						String dateFormat = jsonArray.getJSONObject(i).getString("dateFormat");
+						dateFormat = procesDataFormat(dateFormat);
+						if(StringUtil.isNotEmpty(paramType))
+						{
+							if("date".equals(paramType.toLowerCase()))
+							{
+								params.put(paramCode, StringUtil.isNotEmpty(dateFormat)?DateUtil.getNow(dateFormat):DateUtil.getNow(DateUtil.FORMAT_LONOGRAM));
+							}else if("mutiselect".equals(paramType.toLowerCase()) || "multitreeselect".equals(paramType.toLowerCase()))
+							{
+								params.put(paramCode, new JSONArray());
+							}else if("number".equals(paramType.toLowerCase())) {
+								if(StringUtil.isNotEmpty(paramDefault)) {
+									params.put(paramCode, new BigDecimal(paramDefault));
+								}else {
+									params.put(paramCode, 0);
+								}
+							}else {
+								params.put(paramCode, paramDefault);
+							}
+						}else {
+							params.put(paramCode, paramDefault);
+						}
+						
+					}
+				}
+			}
+	       //系统变量
+			if(userInfoDto != null) {
+				JSONObject jsonObject = JSON.parseObject(JSON.toJSONString(userInfoDto));
+				for (int i = 0; i < Constants.SYSTEM_PARAM.length; i++) {
+					Object value = jsonObject.get(Constants.SYSTEM_PARAM[i]);
+					params.put(Constants.SYSTEM_PARAM[i], value);
+				}
+			}
+		 return params;
+	}
+	
+	public static String parseSql(String sqlText,String sqlParams,UserInfoDto userInfoDto){
+		Map<String, Object> params = getDefaultParams(sqlParams, userInfoDto);
+		try {
+			sqlText = JdbcUtils.preprocessSqlText(sqlText,14,params);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return sqlText;
 	}
 	
 	public static void main(String[] args) {

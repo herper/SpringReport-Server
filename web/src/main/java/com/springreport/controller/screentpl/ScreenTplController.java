@@ -19,6 +19,7 @@ import com.springreport.base.PageEntity;
 import com.springreport.base.Response;
 import com.springreport.base.UserInfoDto;
 import com.springreport.constants.Constants;
+import com.springreport.dto.reporttpl.ShareDto;
 import com.springreport.dto.screentpl.MesScreenTplDto;
 import com.springreport.dto.screentpl.SaveScreenTplDto;
 import com.springreport.dto.screentpl.ScreenTplDto;
@@ -165,7 +166,7 @@ public class ScreenTplController extends BaseController {
 	@RequestMapping(value = "/getScreenDesign",method = RequestMethod.POST)
 	@MethodLog(module="ScreenTpl",remark="获取大屏设计详情",operateType=Constants.OPERATE_TYPE_SEARCH)
 	@Check({"id:required#主键ID"})
-	@RequiresPermissions(value = {"screenTpl_screenDesign","screenTpl_previewDesign","screenTpl_viewScreen","multiScreen_preview","multiScreen_view","screenTemplate_design"},logical = Logical.OR)
+	@RequiresPermissions(value = {"screenTpl_screenDesign","screenTpl_previewDesign","screenTpl_viewScreen","multiScreen_preview","multiScreen_view","screenTemplate_design","multi_view"},logical = Logical.OR)
 	public Response getScreenDesign(@RequestBody ScreenTpl screenTpl,@LoginUser UserInfoDto userInfoDto)
 	{
 		ScreenTplDto result = this.iScreenTplService.getScreenDesign(screenTpl);
@@ -185,9 +186,9 @@ public class ScreenTplController extends BaseController {
 	@MethodLog(module="ScreenTpl",remark="保存大屏设计",operateType=Constants.OPERATE_TYPE_ADD)
 	@Check({"id:required#主键ID","width:required#大屏宽度","height:required#大屏高度"})
 	@RequiresPermissions(value = {"screenTpl_saveDesign","screenTemplate_design"},logical = Logical.OR)
-	public Response saveScreenDesign(@RequestBody SaveScreenTplDto saveScreenTplDto) throws JsonProcessingException
+	public Response saveScreenDesign(@RequestBody SaveScreenTplDto saveScreenTplDto,@LoginUser UserInfoDto userInfoDto) throws JsonProcessingException
 	{
-		BaseEntity result = this.iScreenTplService.saveScreenDesign(saveScreenTplDto);
+		BaseEntity result = this.iScreenTplService.saveScreenDesign(saveScreenTplDto,userInfoDto);
 		return Response.success(result.getStatusMsg());
 	}
 	
@@ -212,5 +213,13 @@ public class ScreenTplController extends BaseController {
 	{
 		BaseEntity result = iScreenTplService.copyScreen(screenTpl);
 		return Response.success(result.getStatusMsg());
+	}
+	
+	@RequestMapping(value = "/getShareUrl",method = RequestMethod.POST)
+	@MethodLog(module="ScreenTpl",remark="获取分享链接",operateType=Constants.OPERATE_TYPE_SEARCH)
+	public Response getShareUrl(@RequestBody ShareDto shareDto,@LoginUser UserInfoDto userInfoDto)
+	{
+		ShareDto result = this.iScreenTplService.getShareUrl(shareDto, userInfoDto);
+		return Response.success(result);
 	}
 }

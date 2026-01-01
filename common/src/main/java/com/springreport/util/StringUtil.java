@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Reader;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -246,8 +247,8 @@ public class StringUtil {
 	}
 	
 	/**  
-	 * @MethodName: 判断字符串是否是超链接
-	 * @Description: TODO
+	 * @MethodName: isUrl
+	 * @Description: 判断字符串是否是超链接
 	 * @author caiyang
 	 * @param url
 	 * @return 
@@ -256,13 +257,37 @@ public class StringUtil {
 	 */  
 	public static Boolean isUrl(String url)
 	{
+		HttpURLConnection connection = null;
 	    try {
-	        new URL(url);
-	        return true;
-	    } catch (MalformedURLException e) {
+	    	connection = (HttpURLConnection) new URL(url).openConnection();
+	    	connection.setRequestMethod("HEAD");
+            connection.setConnectTimeout(500);  // 0.5秒连接超时
+            connection.setReadTimeout(500);     // 0.5秒读取超时
+            connection.setInstanceFollowRedirects(false); // 跟随重定向
+            int responseCode = connection.getResponseCode();
+            return (responseCode >= 200 && responseCode < 400);
+	    } catch (Exception e) {
 	        return false;
-	    }
+	    }finally {
+            if (connection != null) {
+                connection.disconnect(); // 及时释放连接
+            }
+        }
 	}
+	
+	 // 完整的URL正则表达式
+    private static final String URL_REGEX = 
+        "^(http|https)://.*$";
+    
+    private static final Pattern URL_PATTERN = Pattern.compile(URL_REGEX);
+    
+    public static boolean isValidUrl(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            return false;
+        }
+        Matcher matcher = URL_PATTERN.matcher(url);
+        return matcher.matches();
+    }
 	
 	/**  
 	 * @MethodName: isImgUrl
@@ -274,10 +299,12 @@ public class StringUtil {
 	 */ 
 	public static boolean isImgUrl(String url) {
 		boolean result = false;
-		boolean isUrl = isUrl(url);
+//		boolean isUrl = isUrl(url);
+		boolean isUrl = isValidUrl(url);
 		if(isUrl)
 		{
-			String contentType = getContentType(url);
+//			String contentType = getContentType(url);
+			String contentType = getUrlExtensionSafe(url);
 			if(StringUtil.isNotEmpty(contentType))
 			{
 				if(Constants.IMG_EXTENTIONS.contains(contentType))
@@ -526,17 +553,50 @@ public class StringUtil {
         String replaced = str.replaceAll(character, "");
         return replaced.isEmpty(); // 如果替换后为空，则说明字符相同
     }
+    
+    /**  
+     * @MethodName: countChineseCharaceters
+     * @Description: 统计字符串中中文字符的数量
+     * @author caiyang
+     * @param Str
+     * @return boolean
+     * @date 2025-07-24 09:28:26 
+     */ 
+    public static int countChineseCharaceters(String str) {
+    	int count = 0;
+    	if(StringUtil.isNullOrEmpty(str)) {
+    		return 0;
+    	}
+    	char[] c = str.toCharArray();
+        for(int i = 0; i < c.length; i ++)
+        {
+            String len = Integer.toBinaryString(c[i]);
+            if(len.length() > 8)
+                count ++;
+        }
+        return count;
+    }
+    
+    public static String getUrlExtensionSafe(String url) {
+        if (url == null || url.isEmpty()) return "";
+        String clean = url.split("[?#]")[0];
+        String[] parts = clean.split("/");
+        String last = parts.length > 0 ? parts[parts.length - 1] : "";
+        int dot = last.lastIndexOf('.');
+        return (dot > 0 && dot < last.length() - 1) ? 
+               last.substring(dot + 1).toLowerCase() : "";
+    }
 
 	public static void main(String[] args) throws Exception {
-		 double number = 1;
-		 
-	        // 创建DecimalFormat对象，指定百分比格式
-	        DecimalFormat decimalFormat = new DecimalFormat("0.00%");
-	 
-	        // 格式化数字并输出结果
-	        String formattedNumber = decimalFormat.format(number);
-	        String value = "\n\n\ncdfadfad\n\n\n\n ";
-	        String [] split = value.split("\n");
-	        System.out.println(value.split("\n").length);
+//		 double number = 1;
+//		 
+//	        // 创建DecimalFormat对象，指定百分比格式
+//	        DecimalFormat decimalFormat = new DecimalFormat("0.00%");
+//	 
+//	        // 格式化数字并输出结果
+//	        String formattedNumber = decimalFormat.format(number);
+//	        String value = "\n\n\ncdfadfad\n\n\n\n ";
+//	        String [] split = value.split("\n");
+	        System.out.println(getUrlExtensionSafe("https://www.springreport.vip//images/chart/bor2der1.png?t=1764759254279"));
 	}
 }

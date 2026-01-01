@@ -1,6 +1,8 @@
 package com.springreport.util;
 
 import java.awt.Color;
+import java.awt.font.FontRenderContext;
+import java.awt.geom.AffineTransform;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -24,6 +26,7 @@ import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.HorizontalAlignment;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.VerticalAlignment;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.streaming.SXSSFCell;
@@ -79,6 +82,9 @@ public class LuckySheetCellUtil {
     	numberFormat.put("#,##0_);(#,##0)","1");
     	numberFormat.put("#,##0_);[Red](#,##0)","1");
     	numberFormat.put("#,##0.00_);(#,##0.00)","1");
+    	numberFormat.put("#0.00%","1");
+    	numberFormat.put("0%","1");
+    	numberFormat.put("0.00%","1");
 	}
     
     /**  
@@ -101,7 +107,7 @@ public class LuckySheetCellUtil {
    		}
    	}
    	
-   	public void setRowHeight(int maxX,Map<String, Object> rowlen,JSONObject rowhidden,Map<String, Integer> wrapText) {
+   	public void setRowHeight(int maxX,Map<String, Object> rowlen,JSONObject rowhidden,Map<String, Object> wrapText) {
    		if(rowlen == null)
    		{
    			rowlen = new HashMap<String, Object>();
@@ -113,9 +119,10 @@ public class LuckySheetCellUtil {
    				if(rowhidden.get(i+"") != null && rowhidden.getIntValue(i+"") == 0)
    				{
    					row.setZeroHeight(true);
+   					continue;
    				}
    			}
-   			if(!wrapText.containsKey(i+"")) {
+   			if(!wrapText.containsKey("row_"+i+"")) {
    				if(rowlen.get(String.valueOf(i)) != null)
    	   			{
    	   				try {
@@ -128,6 +135,48 @@ public class LuckySheetCellUtil {
    		}
    	}
    	
+   	public void setWrapTextRowHeight(int maxX,Map<String, Object> rowlen,JSONObject rowhidden,Map<String, Object> wrapText) {
+   		if(rowlen == null)
+   		{
+   			rowlen = new HashMap<String, Object>();
+   		}
+   		for (int i = 0; i <= maxX; i++) {
+   			XSSFRow row = sheet.getRow(i);
+   			if(rowhidden != null && !rowhidden.isEmpty())
+   			{
+   				if(rowhidden.get(i+"") != null && rowhidden.getIntValue(i+"") == 0)
+   				{
+   					row.setZeroHeight(true);
+   					continue;
+   				}
+   			}
+   			if(wrapText.containsKey("row_"+i+"")) {
+   				int column = (int) wrapText.get("row_"+i+"");
+   				int colspan = (int) wrapText.get("maxrow_"+i+"_colspan");
+   				float colWidth = getColWidth(column,colspan);
+   				String maxKey = "maxrow_" + (i);
+   				String cellValue = String.valueOf(wrapText.get(maxKey));
+				FontRenderContext frc = new FontRenderContext(new AffineTransform(), true, true);
+				XSSFCellStyle style = row.getCell(column).getCellStyle();
+				java.awt.Font font = new java.awt.Font("微软雅黑", style.getFont().getBold()?1:0, style.getFont().getFontHeightInPoints());
+				int width = (int) font.getStringBounds(cellValue, frc).getWidth();
+				String wordContent = "田";
+				java.awt.Rectangle rec = font.getStringBounds(wordContent, frc).getBounds();
+				int rows = (int) Math.ceil(width/colWidth) ;
+				float poiHeight = (float) ((rec.height+3) * rows);
+				row.setHeightInPoints(poiHeight);
+   			}
+   			
+   		}
+   	}
+    
+   	private float getColWidth(int startColumn,int colspan) {
+   		float total = 0;
+   		for (int i = 0; i < colspan; i++) {
+   			total = total + sheet.getColumnWidthInPixels(startColumn+i);
+		}
+   		return total;
+   	}
    	
    	/**  
 	 * @Title: setCellValues
@@ -138,13 +187,14 @@ public class LuckySheetCellUtil {
 	 * @date 2021-06-09 05:01:36 
 	 */ 
 	public void setCellValues(List<Map<String, Object>> cellDatas,Map<String, Map<String, Object>> hyperlinks,List<Object> borderInfos,Map<String, String> unProtectCells,JSONObject merge,Integer isCoedit,
-			JSONObject dataVerification,JSONArray xxbtCells,boolean isPdfStream,JSONArray barCodeCells,JSONArray qrCodeCells,Map<String, Integer> wrapText,
+			JSONObject dataVerification,JSONArray xxbtCells,boolean isPdfStream,JSONArray barCodeCells,JSONArray qrCodeCells,Map<String, Object> wrapText,
 			List<String> noViewAuthCells)
 	{
 		JSONObject cellBorders = this.getCellBorderInfo(borderInfos);
 		if(cellDatas != null && cellDatas.size() > 0)
 		{
 			JSONObject cellBorder = null;
+			JSONObject cellColSpan = new JSONObject();
 			Map<String, XSSFCellStyle> cellStyleMap = new HashMap<String, XSSFCellStyle>();
 			for (int i = 0; i < cellDatas.size(); i++) {
 				Map<String, Object> cellData = cellDatas.get(i);
@@ -157,6 +207,28 @@ public class LuckySheetCellUtil {
 					cellValue = new HashMap<String, Object>();
 				}
 				Cell cell = this.getCell(Integer.valueOf(String.valueOf(cellData.get(LuckySheetPropsEnum.R.getCode()))), Integer.valueOf(String.valueOf(cellData.get(LuckySheetPropsEnum.C.getCode()))));
+				if(YesNoEnum.NO.getCode().intValue() == isCoedit.intValue())
+				{
+					Map<String, Object> mergeCell = (Map<String, Object>) cellValue.get(LuckySheetPropsEnum.MERGECELLS.getCode());
+					if(mergeCell != null)
+					{
+						if(mergeCell.containsKey(LuckySheetPropsEnum.ROWSPAN.getCode()) && mergeCell.containsKey(LuckySheetPropsEnum.COLSPAN.getCode()))
+						{
+							int firstRow = Integer.valueOf(String.valueOf(mergeCell.get(LuckySheetPropsEnum.R.getCode())));
+							int lastRow = Integer.valueOf(String.valueOf(mergeCell.get(LuckySheetPropsEnum.R.getCode()))) + Integer.valueOf(String.valueOf(mergeCell.get(LuckySheetPropsEnum.ROWSPAN.getCode()))) - 1;
+							int firstCol = Integer.valueOf(String.valueOf(mergeCell.get(LuckySheetPropsEnum.C.getCode())));
+							int lastCol = Integer.valueOf(String.valueOf(mergeCell.get(LuckySheetPropsEnum.C.getCode()))) + Integer.valueOf(String.valueOf(mergeCell.get(LuckySheetPropsEnum.COLSPAN.getCode()))) - 1;
+							try {
+								this.mergeCell(firstRow, lastRow, firstCol, lastCol);
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+							
+							cellColSpan.put(firstRow+"_"+firstCol, lastCol-firstCol+1);
+						}
+					}
+				}
+				
 				if(!isPdfStream && cellConfig != null && cellConfig.get("xxbt") != null && "1".equals(String.valueOf(cellConfig.get("xxbt")))
 						&& cellConfig.get("v") != null && String.valueOf(cellConfig.get("v")).contains("|") && String.valueOf(cellConfig.get("v")).split("\\|").length<5)
 				{
@@ -303,6 +375,24 @@ public class LuckySheetCellUtil {
 							if(StringUtil.isNotEmpty(cellValueString)) {
 								wrapText.put(r+"_"+cell.getColumnIndex(), cellValueString.length());
 								wrapText.put("row_"+r,cell.getColumnIndex());
+								String maxKey = "maxrow_" + r;
+								if(wrapText.containsKey(maxKey)) {
+									if(cellValueString.length()>String.valueOf(wrapText.get(maxKey)).length()) {
+										wrapText.put(maxKey, cellValueString);
+										if(cellColSpan.containsKey(r+"_"+cell.getColumnIndex())) {
+											wrapText.put(maxKey+"_colspan", cellColSpan.get(r+"_"+cell.getColumnIndex()));
+										}else {
+											wrapText.put(maxKey+"_colspan", 1);
+										}
+									}
+								}else {
+									wrapText.put(maxKey, cellValueString);
+									if(cellColSpan.containsKey(r+"_"+cell.getColumnIndex())) {
+										wrapText.put(maxKey+"_colspan", cellColSpan.get(r+"_"+cell.getColumnIndex()));
+									}else {
+										wrapText.put(maxKey+"_colspan", 1);
+									}
+								}
 							}
 						}
 //						else {
@@ -344,21 +434,6 @@ public class LuckySheetCellUtil {
 					XSSFHyperlink  XSSFHyperlink = (XSSFHyperlink) createHelper.createHyperlink(HyperlinkType.URL);
 					XSSFHyperlink.setAddress(String.valueOf(link.get(LuckySheetPropsEnum.LINKADDRESS.getCode())));
 					cell.setHyperlink(XSSFHyperlink);
-				}
-				if(YesNoEnum.NO.getCode().intValue() == isCoedit.intValue())
-				{
-					Map<String, Object> mergeCell = (Map<String, Object>) cellValue.get(LuckySheetPropsEnum.MERGECELLS.getCode());
-					if(mergeCell != null)
-					{
-						if(mergeCell.containsKey(LuckySheetPropsEnum.ROWSPAN.getCode()) && mergeCell.containsKey(LuckySheetPropsEnum.COLSPAN.getCode()))
-						{
-							int firstRow = Integer.valueOf(String.valueOf(mergeCell.get(LuckySheetPropsEnum.R.getCode())));
-							int lastRow = Integer.valueOf(String.valueOf(mergeCell.get(LuckySheetPropsEnum.R.getCode()))) + Integer.valueOf(String.valueOf(mergeCell.get(LuckySheetPropsEnum.ROWSPAN.getCode()))) - 1;
-							int firstCol = Integer.valueOf(String.valueOf(mergeCell.get(LuckySheetPropsEnum.C.getCode())));
-							int lastCol = Integer.valueOf(String.valueOf(mergeCell.get(LuckySheetPropsEnum.C.getCode()))) + Integer.valueOf(String.valueOf(mergeCell.get(LuckySheetPropsEnum.COLSPAN.getCode()))) - 1;
-							this.mergeCell(firstRow, lastRow, firstCol, lastCol);
-						}
-					}
 				}
 				String ff = String.valueOf(cellConfig.get("ff"));//字体
 				if(barCodeCells != null && StringUtil.isNotEmpty(ff) && ff.contains("barCode128")) {
@@ -578,7 +653,7 @@ public class LuckySheetCellUtil {
 		}
 	}
 	
-	private CellStyle getCellStyle(Map<String, Object> cellData,Map<String, XSSFCellStyle> cellStyleMap,boolean isLock,String borderType,Map<String, Integer> wrapText) {
+	private CellStyle getCellStyle(Map<String, Object> cellData,Map<String, XSSFCellStyle> cellStyleMap,boolean isLock,String borderType,Map<String, Object> wrapText) {
 		Map<String, Object> cellConfig = (Map<String, Object>) cellData.get(LuckySheetPropsEnum.CELLCONFIG.getCode());
 		Map<String, Object> styleMap = getCellStyleMap(cellConfig,isLock);
 		styleMap.put("borderType", borderType);
@@ -605,6 +680,8 @@ public class LuckySheetCellUtil {
 			String fa = String.valueOf(styleMap.get("dataFormat")==null?"":styleMap.get("dataFormat"));
 			if("##0.00".equals(fa)) {
 				fa = "#,##0.00";
+			}else if("#0.00%".equals(fa)) {
+				fa = "0.00%";
 			}
 			DataFormat format = wb.createDataFormat();
 			cellStyle.setDataFormat(StringUtil.isNullOrEmpty(fa)?format.getFormat("General"):format.getFormat(fa));
@@ -670,7 +747,14 @@ public class LuckySheetCellUtil {
 			//字体大小
 			String fontSize = String.valueOf(styleMap.get("fontSize"));
 			font.setFontHeightInPoints(Short.parseShort(fontSize));
-			cellStyle.setWrapText(true);
+			if("2".equals(tb)) {
+				cellStyle.setWrapText(true);
+			}else if("1".equals(tb)) {
+				cellStyle.setWrapText(false);
+			}else if("0".equals(tb)) {
+				cellStyle.setWrapText(true);
+			}
+			
 			cellStyle.setFont(font);
 			cellStyle.setLocked(isLock);
 			if(BorderTypeEnum.BORDERALL.getCode().equals(borderType))

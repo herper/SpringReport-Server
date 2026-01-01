@@ -23,8 +23,10 @@ import javax.sql.DataSource;
 
 import org.influxdb.dto.QueryResult;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.springreport.base.ReportDataColumnDto;
 import com.springreport.base.ReportDataDetailDto;
 import com.springreport.base.UserInfoDto;
@@ -34,6 +36,7 @@ import com.springreport.enums.OutParamTypeEnum;
 import com.springreport.enums.ResultTypeEnum;
 import com.springreport.exception.BizException;
 
+import dm.jdbc.driver.DmdbNClob;
 import lombok.extern.slf4j.Slf4j;
 
 /**  
@@ -64,37 +67,63 @@ public class ReportDataUtil {
 		if(ResultTypeEnum.OBJECT.getCode().equals(apiResultType))
 		{//返回类型是对象
 			JSONObject jsonObject = JSONObject.parseObject(apiResult);
+			Object apiResultObject = jsonObject;
 			if(StringUtil.isNotEmpty(apiPrefix) && jsonObject != null)
 			{//前缀是否为空
 				String[] prefixes = apiPrefix.split("[.]");
 				for (int j = 0; j < prefixes.length; j++) {
-					Object object = jsonObject.get(prefixes[j]);
-					if(object instanceof JSONObject)
-					{
-						if(j == prefixes.length - 1)
+					if(apiResultObject instanceof JSONObject) {
+						Object object = ((JSONObject)apiResultObject).get(prefixes[j]);
+						if(object instanceof JSONObject)
 						{
-							resultObj = object;
+							if(j == prefixes.length - 1)
+							{
+								resultObj = object;
+							}else {
+								jsonObject = JSONObject.parseObject(JSONObject.toJSONString(object));
+								apiResultObject = jsonObject;
+								if(StringUtil.isNotEmpty(totalAttr)) {
+									total = jsonObject.getLongValue(totalAttr);
+								}
+							}
+							
+						}else if(object instanceof JSONArray)
+						{
+							if(j == prefixes.length - 1)
+							{
+								resultObj = object;
+								if(StringUtil.isNotEmpty(totalAttr)) {
+									total = jsonObject.getLongValue(totalAttr);
+								}
+							}else {
+								JSONArray datas = (JSONArray) object;
+								apiResultObject = datas;
+							}
 						}else {
-							jsonObject = JSONObject.parseObject(JSONObject.toJSONString(object));
-							if(StringUtil.isNotEmpty(totalAttr)) {
-								total = jsonObject.getLongValue(totalAttr);
+							throw new BizException(StatusCode.FAILURE,"不支持的返回值格式。");
+						}
+					}else if(apiResultObject instanceof JSONArray) {
+						JSONArray apiResultObjectArray = (JSONArray) apiResultObject;
+						JSONArray datas = new JSONArray();
+						if(ListUtil.isNotEmpty(apiResultObjectArray)) {
+							for (int i = 0; i < apiResultObjectArray.size(); i++) {
+								JSONObject data = apiResultObjectArray.getJSONObject(i);
+								Object subData = data.get(prefixes[j]);
+								if(subData instanceof JSONObject) {
+									datas.add(subData);
+								}else {
+									datas.addAll((JSONArray)subData);
+								}
 							}
 						}
-						
-					}else if(object instanceof JSONArray)
-					{
-						if(j == prefixes.length - 1)
-						{
-							resultObj = object;
-							if(StringUtil.isNotEmpty(totalAttr)) {
-								total = jsonObject.getLongValue(totalAttr);
-							}
-						}else {
-							throw new BizException(StatusCode.FAILURE, "不支持的返回值格式。");
+						apiResultObject = datas;
+						if(j == prefixes.length - 1) {
+							resultObj = apiResultObject;
 						}
 					}else {
 						throw new BizException(StatusCode.FAILURE,"不支持的返回值格式。");
 					}
+					
 				}
 			}else {
 				resultObj = JSONObject.parseObject(apiResult);
@@ -114,14 +143,14 @@ public class ReportDataUtil {
 		if(resultObj instanceof JSONObject)
 		{
 			list = new ArrayList<Map<String,Object>>();
-			Map<String, Object> map = JSONObject.parseObject(JSONObject.toJSONString(resultObj), LinkedHashMap.class);
+			Map<String, Object> map = JSON.parseObject(JSONObject.toJSONString(resultObj,SerializerFeature.WriteMapNullValue), LinkedHashMap.class);
 			list.add(map);
 		}else if(resultObj instanceof JSONArray){
 			JSONArray jsonArray = (JSONArray) resultObj;
 			Map<String, Object> map = null;
 			list = new ArrayList<Map<String,Object>>();
 			for (int i = 0; i < jsonArray.size(); i++) {
-				map = JSONObject.parseObject(JSONObject.toJSONString(jsonArray.get(i)), LinkedHashMap.class);
+				map = JSONObject.parseObject(JSONObject.toJSONString(jsonArray.get(i),SerializerFeature.WriteMapNullValue), LinkedHashMap.class);
 				list.add(map);
 			}
 		}
@@ -155,7 +184,13 @@ public class ReportDataUtil {
             while(rs.next()){
                 Map<String, Object> map = new LinkedHashMap<String, Object>();
                 for(int i = 0; i < count; i++){
-                 map.put(rsMataData.getColumnLabel(i+1), rs.getObject(rsMataData.getColumnLabel(i+1)));
+                	Object value = rs.getObject(rsMataData.getColumnLabel(i+1));
+                	if(value instanceof DmdbNClob) {
+                		DmdbNClob dmdbNClob = (dm.jdbc.driver.DmdbNClob) value;
+                		map.put(rsMataData.getColumnLabel(i+1), dmdbNClob.data);
+                	}else {
+                		map.put(rsMataData.getColumnLabel(i+1), value);
+                	}
                 }
                 result.add(map);
             }
@@ -450,25 +485,41 @@ public class ReportDataUtil {
 	 * @author caiyang
 	 * @date 2021-11-18 02:15:52 
 	 */ 
-	public static List<Map<String, Object>> getSelectData(DataSource dataSource, String sqlText) {
+	public static List<Map<String, Object>> getSelectData(DataSource dataSource, String sqlText,boolean isDistinct) {
 		Connection conn = null;
 	    Statement stmt = null;
 	    ResultSet rs = null;
-	    List<Map<String, Object>> result = null;
+	    List<Map<String, Object>> result = new ArrayList<>();
 	    try {
 	    	conn = dataSource.getConnection();
 	    	stmt = conn.createStatement();
             rs = stmt.executeQuery(sqlText);
             final ResultSetMetaData rsMataData = rs.getMetaData();
             final int count = rsMataData.getColumnCount();
-            result = new ArrayList<>(count);
+            List<Map<String, Object>> selectDatas = new ArrayList<>(count);
             while(rs.next()){
                 Map<String, Object> map = new HashMap<String, Object>();
                 for(int i = 0; i < count; i++){
                  map.put(rsMataData.getColumnLabel(i+1).toLowerCase(), rs.getObject(rsMataData.getColumnLabel(i+1)));
                 }
-                result.add(map);
+                selectDatas.add(map);
             }
+            if(!isDistinct) {
+            	return selectDatas;
+            }
+            if(ListUtil.isNotEmpty(selectDatas)) {
+    			//根据value值去重
+    			List<String> values = new ArrayList<>();
+    			Map<String, Object> obj = null;
+    			for (int i = 0; i < selectDatas.size(); i++) {
+    				obj = selectDatas.get(i);
+    				Object value = obj.get("value");
+    				if(!values.contains(String.valueOf(value))) {
+    					result.add(obj);
+    					values.add(String.valueOf(value));
+    				}
+    			}
+    		}
         } catch (final SQLException ex) {
         	throw new BizException(StatusCode.FAILURE,"sql语句执行错误，请检查sql语句是否拼写正确或者数据源是否选择正确。错误信息："+ex.getMessage());
         } finally {

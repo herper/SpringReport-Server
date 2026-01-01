@@ -334,4 +334,40 @@ public class LuckysheetReportCell extends PageEntity {
     /** sub_extend - 子数据扩展方向 1不扩展 2纵向扩展 3横向扩展 */
     @TableField("sub_extend")
     private Integer subExtend;
+    
+    /** priorty_move_direction - 优先移动方向 1向下 2向右 */
+    @TableField("priorty_move_direction")
+    private Integer priortyMoveDirection;
+    
+    /** source_type - 数据字典数据来源 1数据字典 2sql语句 3自定义 */
+    @TableField("source_type")
+    private Integer sourceType;
+
+    /** dict_content - sql语句或者自定义数据字典内容 */
+    @TableField("dict_content")
+    private String dictContent;
+    
+    /** sub_block_range -  子循环块范围*/
+    @TableField("sub_block_range")
+    private String subBlockRange;
+    
+    /** compare_attr1 - 同比/环比本期属性 */
+    @TableField("compare_attr1")
+    private String compareAttr1;
+
+    /** compare_attr2 - 同比/环比同期属性 */
+    @TableField("compare_attr2")
+    private String compareAttr2;
+    
+    /** is_dump - 去重属性 */
+    @TableField("is_dump")
+    private Boolean isDump;
+    
+    /** dump_attr - 去重属性 */
+    @TableField("dump_attr")
+    private String dumpAttr;
+    
+    /** keep_empty_cell - 没有数据时是否保留空单元格*/
+    @TableField("keep_empty_cell")
+    private Boolean keepEmptyCell;
 }

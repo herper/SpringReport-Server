@@ -1,5 +1,6 @@
 package com.springreport.util;
 
+import java.awt.font.FontRenderContext;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
@@ -95,7 +96,8 @@ public class LuckysheetUtil {
 			//整数百分比
 			if(CheckUtil.isNumber(String.valueOf(value)))
 			{
-				return parsePercent(value,fa);
+//				return parsePercent(value,fa);
+				return value;
 			}else {
 				return value;
 			}
@@ -103,7 +105,8 @@ public class LuckysheetUtil {
 			//两位小数百分比
 			if(CheckUtil.isNumber(String.valueOf(value)))
 			{
-				return parsePercent(value,fa.replace("#", ""));
+//				return parsePercent(value,fa.replace("#", ""));
+				return value;
 			}else {
 				return value;
 			}
@@ -589,11 +592,16 @@ public class LuckysheetUtil {
 	}
 	
 	public static String[] getDatasetNames(String datasetName) {
-		String[] datasetNames = datasetName.split(",");
-		List<String> datasetNameList = Arrays.asList(datasetNames);
-		Set<String> set = new HashSet(datasetNameList);
-		datasetNames=(String [])set.toArray(new String[0]);
-		return datasetNames;
+		if(StringUtil.isNotEmpty(datasetName)) {
+			String[] datasetNames = datasetName.split(",");
+			List<String> datasetNameList = Arrays.asList(datasetNames);
+			Set<String> set = new HashSet(datasetNameList);
+			datasetNames=(String [])set.toArray(new String[0]);
+			return datasetNames;
+		}else {
+			return new String[] {};
+		}
+		
 	}
 	
 	/**  
@@ -614,7 +622,7 @@ public class LuckysheetUtil {
 			rowhiddenJsonobject = JSONObject.parseObject(JSON.toJSONString(rowhidden));
 		}
 		for (int i = 0; i < r; i++) {
-			if(rowhidden != null && rowhiddenJsonobject.containsKey(i))
+			if(rowhidden != null && rowhiddenJsonobject.containsKey(i+""))
 			{
 				continue;
 			}
@@ -639,7 +647,7 @@ public class LuckysheetUtil {
 			colhiddenJsonobject = JSONObject.parseObject(JSON.toJSONString(colhidden));
 		}
 		for (int i = 0; i < c; i++) {
-			if(colhiddenJsonobject != null && colhiddenJsonobject.containsKey(i))
+			if(colhiddenJsonobject != null && colhiddenJsonobject.containsKey(i+""))
 			{
 				hiddenCount = hiddenCount + 1;
 				continue;
@@ -652,7 +660,7 @@ public class LuckysheetUtil {
 			}
 			result = result +temp;
 		}
-		result = result  - hiddenCount;
+		result = result  - hiddenCount + c;
 		return Math.ceil(result);
 	}
 	
@@ -1014,6 +1022,49 @@ public class LuckysheetUtil {
 		result.put("r", r);
 		result.put("dy", temp);
 		return result;
+	}
+	
+	public static void calculateWrapRowLen(JSONObject wrapData,Map<String, Object> rowlen,Map<String, Object> columnlen,FontRenderContext frc) {
+		int str = wrapData.getIntValue("str");
+		int edr = wrapData.getIntValue("edr");
+		int stc = wrapData.getIntValue("stc");
+		int edc = wrapData.getIntValue("edc");
+		int ls = wrapData.getIntValue("ls");;
+		String value = wrapData.getString("value");
+		short fs = wrapData.getShortValue("fs");
+		java.awt.Font font = new java.awt.Font("微软雅黑", 0, fs);
+		int width = (int) font.getStringBounds(value, frc).getWidth();
+		java.awt.Rectangle rec = font.getStringBounds("田", frc).getBounds();
+		double collen = LuckysheetUtil.calculateWidth(columnlen, stc, edc-stc+1);
+		double rows = Math.ceil(width/collen);
+		float poiHeight = (float) ((rec.height+ls) * rows)*(rows>1?1.88f:1f);
+		for (int i = str; i <= edr; i++) {
+			if(rowlen.containsKey(i+"")) {
+				float height = Float.parseFloat(rowlen.get(i+"")+"");
+				if(poiHeight > height) {
+					rowlen.put(i+"", poiHeight);
+				}
+			}else {
+				rowlen.put(i+"", poiHeight);
+			}
+		}
+	}
+	
+	public static void calculateImg(JSONObject img,Map<String, Object> rowlen,Map<String, Object> columnlen,JSONObject rowhidden,JSONObject colhidden) {
+		int r = img.getIntValue("r");
+		int c = img.getIntValue("c");
+		int rowSpan = img.getIntValue("rowSpan");
+		int colSpan = img.getIntValue("colSpan");
+		double top = LuckysheetUtil.calculateTop(rowlen, r,rowhidden);
+		double left = LuckysheetUtil.calculateLeft(columnlen, c,colhidden);
+		Object width = LuckysheetUtil.calculateWidth(columnlen, c, colSpan==0?1:colSpan);
+		Object height = LuckysheetUtil.calculateHeight(rowlen, r, rowSpan==0?1:rowSpan);
+		img.getJSONObject("imgInfo").getJSONObject("default").put("top", top);
+		img.getJSONObject("imgInfo").getJSONObject("default").put("left", left);
+		img.getJSONObject("imgInfo").getJSONObject("default").put("width", width);
+		img.getJSONObject("imgInfo").getJSONObject("default").put("height", height);
+		img.getJSONObject("imgInfo").getJSONObject("crop").put("width", width);
+		img.getJSONObject("imgInfo").getJSONObject("crop").put("height", height);
 	}
 	
 	public static void main(String[] args) {

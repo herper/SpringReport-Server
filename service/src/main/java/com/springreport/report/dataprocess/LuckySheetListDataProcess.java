@@ -13,7 +13,7 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.springreport.constants.StatusCode;
-import com.springreport.dto.reporttpl.LuckySheetBindData;
+import com.springreport.base.LuckySheetBindData;
 import com.springreport.dto.reporttpl.LuckySheetFormsBindData;
 import com.springreport.entity.luckysheetreportcell.LuckysheetReportCell;
 import com.springreport.entity.luckysheetreportformscell.LuckysheetReportFormsCell;
@@ -32,6 +32,7 @@ import com.springreport.report.aggregate.LuckySheetFormsListAggregate;
 import com.springreport.report.aggregate.LuckySheetGroupAggregate;
 import com.springreport.report.aggregate.LuckySheetGroupSummaryAggregate;
 import com.springreport.report.aggregate.LuckySheetListAggregate;
+import com.springreport.report.aggregate.LuckySheetSummaryAggregate;
 import com.springreport.util.ListUtil;
 import com.springreport.util.SheetUtil;
 import com.springreport.util.StringUtil;
@@ -52,7 +53,7 @@ public class LuckySheetListDataProcess extends LuckySheetBasicDynamicDataProcess
 	static{
 		aggregates.put(AggregateTypeEnum.GROUP.getCode(),new LuckySheetGroupAggregate());
 		aggregates.put(AggregateTypeEnum.LIST.getCode(),new LuckySheetListAggregate());
-		aggregates.put(AggregateTypeEnum.SUMMARY.getCode(),new LuckySheetListAggregate());
+		aggregates.put(AggregateTypeEnum.SUMMARY.getCode(),new LuckySheetSummaryAggregate());
 		aggregates.put(AggregateTypeEnum.GROUPSUMMARY.getCode(),new LuckySheetGroupSummaryAggregate());
 		aggregates.put(AggregateTypeEnum.CROSS.getCode(),new LuckySheetCrossAggregate());
 	}
@@ -66,10 +67,10 @@ public class LuckySheetListDataProcess extends LuckySheetBasicDynamicDataProcess
 	@Override
 	public List<LuckySheetBindData> process(List<LuckysheetReportCell> variableCells, List<Map<String, Object>> data,String datasetName,
 			Map<String, Map<String, List<List<Map<String, Object>>>>> processedCells,Map<String, LuckySheetBindData> blockBindDatas,
-			Map<String, Object> subtotalCellDatas,Map<String, Object> subtotalCellMap,String sheetIndex,Map<String, LuckySheetBindData> cellBindData,Map<String, Integer> subTotalDigits,int tplType,List<String> subTotalCellCoords) {
+			Map<String, Object> subtotalCellDatas,Map<String, Object> subtotalCellMap,String sheetIndex,Map<String, LuckySheetBindData> cellBindData,Map<String, JSONObject> subTotalDigits,int tplType,List<String> subTotalCellCoords) {
 		List<LuckySheetBindData> bindDatas = new ArrayList<LuckySheetBindData>();
-		if(!ListUtil.isEmpty(data))
-		{
+//		if(!ListUtil.isEmpty(data))
+//		{
 			Map<String, String> reliedGroupMergeCells = new HashMap<>();//被依赖的合一单元格和依赖单元格对应关系
 			Map<String, Integer> indexChains = new HashMap<String, Integer>();//依赖分组index对应的关系链
 			LuckySheetBindData bindData = null;
@@ -112,15 +113,26 @@ public class LuckySheetListDataProcess extends LuckySheetBasicDynamicDataProcess
 				bindData.setRelyCells(variableCells.get(i).getRelyCells());
 				bindData.setDatasetName(variableCells.get(i).getDatasetName());
 				bindData.setIsDict(variableCells.get(i).getIsDict());
+				bindData.setSourceType(variableCells.get(i).getSourceType());
 				bindData.setDatasourceId(variableCells.get(i).getDatasourceId());
 				bindData.setDictType(variableCells.get(i).getDictType());
+				if(variableCells.get(i).getSourceType() != null && (variableCells.get(i).getSourceType() == 2 || variableCells.get(i).getSourceType() == 3)) {
+					bindData.setDictType(variableCells.get(i).getDictContent());
+				}
 				bindData.setHloopCount(variableCells.get(i).getHloopCount()==null?0:variableCells.get(i).getHloopCount());
 				bindData.setHloopEmptyCount(variableCells.get(i).getHloopEmptyCount()==null?0:variableCells.get(i).getHloopEmptyCount());
 				bindData.setVloopEmptyCount(variableCells.get(i).getVloopEmptyCount()==null?0:variableCells.get(i).getVloopEmptyCount());
+				bindData.setSubBlockRange(variableCells.get(i).getSubBlockRange());
 				bindData.setIsObject(variableCells.get(i).getIsObject());
 				bindData.setDataType(variableCells.get(i).getDataType());
 				bindData.setDataAttr(variableCells.get(i).getDataAttr());
 				bindData.setSubExtend(variableCells.get(i).getSubExtend());
+				bindData.setPriortyMoveDirection(variableCells.get(i).getPriortyMoveDirection());
+				bindData.setCompareAttr1(variableCells.get(i).getCompareAttr1());
+				bindData.setCompareAttr2(variableCells.get(i).getCompareAttr2());
+				bindData.setIsDump(variableCells.get(i).getIsDump());
+				bindData.setDumpAttr(variableCells.get(i).getDumpAttr());
+				bindData.setKeepEmptyCell(variableCells.get(i).getKeepEmptyCell());
 				if(StringUtil.isNotEmpty(variableCells.get(i).getFormsAttrs())) {
 					//填报设置如果设置了下拉单选数据字典，则以填报设置为准
 					JSONObject formsAttrs = JSON.parseObject(variableCells.get(i).getFormsAttrs());
@@ -128,11 +140,28 @@ public class LuckySheetListDataProcess extends LuckySheetBasicDynamicDataProcess
 						String valueType = formsAttrs.getString("valueType");
 						if("4".equals(valueType)) {
 							String datasourceId = formsAttrs.getString("datasourceId");
-							String dictType = formsAttrs.getString("dictType");
-							if(StringUtil.isNotEmpty(datasourceId) && StringUtil.isNotEmpty(dictType)) {
-								bindData.setIsDict(true);
-								bindData.setDatasourceId(Long.parseLong(datasourceId));
-								bindData.setDictType(dictType);
+							int sourceType = formsAttrs.getIntValue("sourceType");
+							String content = formsAttrs.getString("content");
+							bindData.setSourceType(sourceType);
+							if(sourceType == 2) {
+								if(StringUtil.isNotEmpty(datasourceId)) {
+									bindData.setIsDict(true);
+									bindData.setDatasourceId(Long.parseLong(datasourceId));
+									bindData.setDictType(content);
+								}
+							}else if(sourceType == 3) {
+								if(StringUtil.isNotEmpty(content)) {
+									bindData.setIsDict(true);
+									bindData.setDatasourceId(0L);
+									bindData.setDictType(content);
+								}
+							}else {
+								String dictType = formsAttrs.getString("dictType");
+								if(StringUtil.isNotEmpty(datasourceId) && StringUtil.isNotEmpty(dictType)) {
+									bindData.setIsDict(true);
+									bindData.setDatasourceId(Long.parseLong(datasourceId));
+									bindData.setDictType(dictType);
+								}
 							}
 						}
 						boolean isOperationCol =  formsAttrs.getBooleanValue("isOperationCol");
@@ -174,7 +203,17 @@ public class LuckySheetListDataProcess extends LuckySheetBasicDynamicDataProcess
 								int r = cellCoor[0] - 1;
 								int c = cellCoor[1] - 1;
 								String subTotalKey = bindData.getSheetId() + "_" + r + "_" + c; 
-								subTotalDigits.put(subTotalKey, subtotalCells.getJSONObject(j).getInteger("digit"));
+								if(!subTotalDigits.containsKey(subTotalKey))
+								{
+									JSONObject subTotalSettings = new JSONObject();
+									subTotalSettings.put("digit", subtotalCells.getJSONObject(j).getInteger("digit"));
+									subTotalSettings.put("unitTransfer", subtotalCells.getJSONObject(j).getBooleanValue("unitTransfer"));
+									subTotalSettings.put("transferType", subtotalCells.getJSONObject(j).getInteger("transferType"));
+									subTotalSettings.put("multiple", subtotalCells.getJSONObject(j).getInteger("multiple"));
+									subTotalSettings.put("compareAttr1", subtotalCells.getJSONObject(j).getString("compareAttr1"));
+									subTotalSettings.put("compareAttr2", subtotalCells.getJSONObject(j).getString("compareAttr2"));
+									subTotalDigits.put(subTotalKey, subTotalSettings);
+								}
 							}
 						}
 					}
@@ -209,6 +248,9 @@ public class LuckySheetListDataProcess extends LuckySheetBasicDynamicDataProcess
 					bindData.setAggregateType(variableCells.get(i).getAggregateType());
 					bindData.setLastAggregateType(lastAggregateType);
 //					bindData.setContinueGroupMergeCount(continueGroupMergeCount);
+					if(AggregateTypeEnum.SUMMARY.getCode().equals(variableCells.get(i).getAggregateType()) && variableCells.get(i).getIsDump()) {
+						bindData.setDataFrom(DataFromEnum.ORIGINAL.getCode());
+					}
 					if(DataFromEnum.DEFAULT.getCode().intValue() == bindData.getDataFrom().intValue())
 					{//默认，使用上一个单元格计算完后的数据
 						bindData.setLastIsConditions(lastIsConditions);
@@ -303,10 +345,11 @@ public class LuckySheetListDataProcess extends LuckySheetBasicDynamicDataProcess
 										}
 									}
 									for (int k = 0; k < datas.size(); k++) {
-										if(datas.get(k).size() > 1)
-										{
+										//单行小计
+//										if(datas.get(k).size() > 1)
+//										{
 											subtotalCount = subtotalCount + 1;
-										}
+//										}
 									}
 								}
 								groupSubtotalCount.put(t, subtotalCount);
@@ -336,10 +379,11 @@ public class LuckySheetListDataProcess extends LuckySheetBasicDynamicDataProcess
 							int index = 0;
 							for (int t = 0; t < bindDatas2.size(); t++) {
 								index = index + bindDatas2.get(t).size();
-								if(bindDatas2.get(t).size() <= 1)
-								{
-									continue;
-								}
+								//单行小计
+//								if(bindDatas2.get(t).size() <= 1)
+//								{
+//									continue;
+//								}
 								for (int j = 0; j < subtotalCells.size(); j++) {
 									JSONObject subtotalCell = subtotalCells.getJSONObject(j);
 									String coords = subtotalCell.getString("coords").toUpperCase();
@@ -405,7 +449,7 @@ public class LuckySheetListDataProcess extends LuckySheetBasicDynamicDataProcess
 					}
 				}
 			}
-		}
+//		}
 		
 		return bindDatas;
 	}

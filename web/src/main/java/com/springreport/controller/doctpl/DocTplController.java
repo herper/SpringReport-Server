@@ -29,6 +29,7 @@ import com.springreport.dto.reporttpl.MesGenerateReportDto;
 import com.springreport.entity.doctpl.DocTpl;
 import com.springreport.entity.doctplsettings.DocTplSettings;
 import com.springreport.entity.reporttype.ReportType;
+import com.alibaba.fastjson.JSON;
 import com.springreport.annotation.Check;
 import com.springreport.annotation.LoginUser;
 import com.springreport.annotation.MethodLog;
@@ -184,8 +185,8 @@ public class DocTplController extends BaseController {
 	@RequestMapping(value = "/saveDocTplSettings",method = RequestMethod.POST)
 	@RequiresPermissions(value = {"docTpl_save"})
 	@Check({"tplId:required#模板ID"})
-	public Response saveDocTplSettings(@RequestBody DocTplSettingsDto model) {
-		BaseEntity result = this.iDocTplService.saveDocTplSettings(model);
+	public Response saveDocTplSettings(@RequestBody DocTplSettingsDto model,@LoginUser UserInfoDto userInfoDto) {
+		BaseEntity result = this.iDocTplService.saveDocTplSettings(model,userInfoDto);
 		return Response.success(result.getStatusMsg());
 	}
 	

@@ -28,6 +28,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.deepoove.poi.XWPFTemplate;
 import com.deepoove.poi.config.Configure;
 import com.deepoove.poi.config.ConfigureBuilder;
+import com.deepoove.poi.data.RowRenderData;
+import com.deepoove.poi.data.Rows;
 import com.deepoove.poi.plugin.table.LoopColumnTableRenderPolicy;
 import com.deepoove.poi.plugin.table.LoopRowTableRenderPolicy;
 import com.github.pagehelper.PageHelper;
@@ -95,6 +97,7 @@ import com.springreport.util.JdbcUtils;
 import com.springreport.util.ListUtil;
 import com.springreport.util.Md5Util;
 import com.springreport.util.MessageUtil;
+import com.springreport.util.MongoClientUtil;
 import com.springreport.util.ParamUtil;
 import com.springreport.util.ReportDataUtil;
 import com.springreport.util.RowConvertColUtil;
@@ -106,8 +109,11 @@ import lombok.extern.slf4j.Slf4j;
 import com.springreport.base.BaseEntity;
 import com.springreport.base.DocChartSettingDto;
 import com.springreport.base.PageEntity;
+import com.springreport.base.ServerTableData;
+import com.springreport.base.ServerTablePolicy;
 import com.springreport.base.TDengineConnection;
 import com.springreport.base.UserInfoDto;
+import com.springreport.base.WordTableMerge;
 import com.springreport.constants.StatusCode;
 import com.springreport.dto.doctpl.DocDto;
 import com.springreport.dto.doctpl.DocImageDto;
@@ -136,6 +142,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.imageio.ImageIO;
 import javax.servlet.http.HttpServletResponse;
@@ -542,8 +549,17 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 	 * @date 2024-05-03 04:10:18 
 	 */
 	@Override
-	public BaseEntity saveDocTplSettings(DocTplSettingsDto model) {
+	public BaseEntity saveDocTplSettings(DocTplSettingsDto model,UserInfoDto userInfoDto) {
 		BaseEntity result = new BaseEntity();
+		DocTpl tpl = this.getById(model.getTplId());
+		if(tpl == null)
+		{
+			throw new BizException(StatusCode.FAILURE, MessageUtil.getValue("error.notexist", new String[] {"报表模板"}));
+		}
+		if(tpl.getIsExample().intValue() == YesNoEnum.YES.getCode().intValue() && userInfoDto.getIsAdmin().intValue() != YesNoEnum.YES.getCode().intValue()) {
+			//示例模板只允许超级管理员去修改保存
+			throw new BizException(StatusCode.FAILURE, "该模板是示例模板，不允许修改，请见谅！");
+		}
 		DocTplSettings docTplSettings = new DocTplSettings();
 		BeanUtils.copyProperties(model, docTplSettings);
 		UpdateWrapper<DocTplSettings> updateWrapper = new UpdateWrapper<>();
@@ -636,6 +652,7 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		//获取模板关联的所有数据集
 		ReportTplDataset dataset = new ReportTplDataset();
 		dataset.setTplId(model.getTplId());
+		dataset.setCommonType(2);
 		List<ReportDatasetDto> datasets = this.iReportTplDatasetService.getTplDatasets(dataset,userInfoDto);
 		Map<String, Object> data = new HashMap<>();
 		Map<String, List<String>> paramsType = new HashMap<>();//记录参数类型，vertical代表竖向列表参数，horizontal代表横向列表参数
@@ -644,7 +661,7 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		Map<String, Object> subParams = new HashMap<String, Object>();//传给子表的参数
 		if(ListUtil.isNotEmpty(datasets)) {
 			for (int i = 0; i < datasets.size(); i++) {
-				Object datasetData = this.getDatasetDatas(model, datasets.get(i), reportSqls,paramsType,userInfoDto,apiCache,subParams);
+				Object datasetData = this.getDatasetDatas(model, datasets.get(i), reportSqls,paramsType,userInfoDto,apiCache,subParams,docTpl);
 				String subParamAttrs = datasets.get(i).getSubParamAttrs();
 				if(StringUtil.isNotEmpty(subParamAttrs) && datasetData != null) {
 					JSONArray attrs = JSON.parseArray(subParamAttrs);
@@ -666,7 +683,27 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 								}
 							}
 						}
-					}else {
+					}else if(datasetData instanceof ServerTableData) {
+						ServerTableData serverTableData = (ServerTableData) datasetData;
+						List<Map<String, Object>> datas = serverTableData.getGroupDataList();
+						if(ListUtil.isNotEmpty(attrs) && ListUtil.isNotEmpty(datas)) {
+							for (int t = 0; t < datas.size(); t++) {
+								for (int j = 0; j < attrs.size(); j++) {
+									if(datas.get(t).containsKey(attrs.getString(j))) {
+										JSONArray paramsArray = null;
+										if(subParams.containsKey(attrs.getString(j))) {
+											paramsArray = (JSONArray) subParams.get(attrs.getString(j));
+										}else {
+											paramsArray = new JSONArray();
+											subParams.put(attrs.getString(j), paramsArray);
+										}
+										paramsArray.add(datas.get(t).get(attrs.getString(j)));
+									}
+								}
+							}
+						}
+					}
+					else {
 						Map<String, Object> objectData = (Map<String, Object>) datasetData;
 						if(ListUtil.isNotEmpty(attrs)) {
 							for (int j = 0; j < attrs.size(); j++) {
@@ -757,6 +794,12 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 						List<String> horizontal = paramsType.get("horizontal");
 						for (int i = 0; i < horizontal.size(); i++) {
 							configureBuilder.bind(horizontal.get(i), horizontalPolicy);
+						}
+						break;
+					case "group":
+						List<String> group = paramsType.get("group");
+						for (int i = 0; i < group.size(); i++) {
+							configureBuilder.bind(group.get(i), new ServerTablePolicy());
 						}
 						break;
 					default:
@@ -952,10 +995,17 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 								content.put("value", value.replaceFirst("\n", ""));
 							}
 						}
-						if(paragraph == null) {
-							paragraph = doc.createParagraph();
+						List<JSONObject> processBlocks = WordUtil.processBlocks(content.getString("value"));
+						if(ListUtil.isNotEmpty(processBlocks)) {
+							for (int j = 0; j < processBlocks.size(); j++) {
+								WordUtil.addParagraph(doc.createParagraph(),processBlocks.get(j), null,false);
+							}
+						}else {
+							if(paragraph == null) {
+								paragraph = doc.createParagraph();
+							}
+							WordUtil.addParagraph(paragraph,content, null,false);
 						}
-						WordUtil.addParagraph(paragraph,content, null,false);
 						break;
 					case "title":
 						if(paragraph == null) {
@@ -1155,12 +1205,18 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 	 */ 
 	@Override
 	public Object getDatasetDatas(MesGenerateReportDto mesGenerateReportDto,ReportDatasetDto reportTplDataset,List<Map<String, String>> reportSqls,
-			Map<String, List<String>> paramsType,UserInfoDto userInfoDto,Map<String, String> apiCache,Map<String, Object> subParams) throws Exception {
+			Map<String, List<String>> paramsType,UserInfoDto userInfoDto,Map<String, String> apiCache,Map<String, Object> subParams,DocTpl docTpl) throws Exception {
 		Map<String, String> sqlMap = new HashMap<>();
 		List<Map<String, Object>> datas = null;
 		Map<String, Object> searchInfo = null;
-		if(mesGenerateReportDto.getSearchData() != null) {
+//		if(mesGenerateReportDto.getSearchData() != null && mesGenerateReportDto.getSearchData().size() > 0) {
+//			searchInfo = mesGenerateReportDto.getSearchData().get(0);
+//		}
+		if(YesNoEnum.YES.getCode().intValue() == docTpl.getParamMerge().intValue())
+		{
 			searchInfo = mesGenerateReportDto.getSearchData().get(0);
+		}else {
+			searchInfo = this.getDatasetParamInfo(reportTplDataset.getDatasetName(), mesGenerateReportDto);
 		}
 		DataSource dataSource = null;
 		InfluxDBConnection dbConnection = null;
@@ -1175,7 +1231,7 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 			params = new HashMap<String, Object>();
 		}
 		params.putAll(subParams);
-		if(DatasetTypeEnum.SQL.getCode().intValue() == reportTplDataset.getDatasetType().intValue()) {
+		if(DatasetTypeEnum.SQL.getCode().intValue() == reportTplDataset.getDatasetType().intValue() || DatasetTypeEnum.MONGO.getCode().intValue() == reportTplDataset.getDatasetType().intValue()) {
 			Object data = this.iReportTplDatasetService.getDatasetDatasource(reportDatasource);
 			if(data instanceof DataSource)
 			{
@@ -1197,6 +1253,13 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 					datas = ReportDataUtil.getDatasourceDataBySql(tDengineConnection.getConnection(), sql);
 				}else if(reportDatasource.getType().intValue() == 9) {
 					datas = ReportDataUtil.getDatasourceDataBySql(dataSource, sql,reportDatasource.getUserName(),reportDatasource.getPassword());
+				}else if(reportDatasource.getType().intValue() == 14){//mongodb
+					sql = JdbcUtils.processSqlParams(sql, params);
+					if(reportTplDataset.getMongoSearchType().intValue() == 1) {
+						datas = MongoClientUtil.findGetData(reportDatasource.getJdbcUrl(), reportTplDataset.getMongoTable(), sql, reportTplDataset.getMongoOrder());
+					}else if(reportTplDataset.getMongoSearchType().intValue() == 2) {
+						datas = MongoClientUtil.aggregateGetData(reportDatasource.getJdbcUrl(), reportTplDataset.getMongoTable(), sql);
+					}
 				}else {
 					datas = ReportDataUtil.getDatasourceDataBySql(dataSource, sql);
 				}
@@ -1269,7 +1332,7 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 		}
 		String datasetName = reportTplDataset.getDatasetName();
 		//处理数据
-		if(DatasetTypeEnum.SQL.getCode().intValue() == reportTplDataset.getDatasetType().intValue()) {
+		if(DatasetTypeEnum.SQL.getCode().intValue() == reportTplDataset.getDatasetType().intValue() || DatasetTypeEnum.MONGO.getCode().intValue() == reportTplDataset.getDatasetType().intValue()) {
 			//sql查询，如果数据集名称是以_v或者_V结尾的，则说明是列表数据，并且是竖向扩展，
 			//如果数据集名称是以_h或者_H结尾的，则说明是列表数据，并且是横向扩展
 			//如果数据集名称是以_l结尾的，则说明是列表数据，将列表数据直接返回
@@ -1293,6 +1356,18 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 			}else if(datasetName.toLowerCase().endsWith("_l")){
 				if(ListUtil.isNotEmpty(datas)) {
 					return datas;	
+				}else {
+					return null;
+				}
+			}else if(datasetName.toLowerCase().endsWith("_g")){
+				List<String> group = paramsType.get("group");
+				if(group == null) {
+					group = new ArrayList<>();
+					paramsType.put("group", group);
+				}
+				group.add(datasetName);
+				if(ListUtil.isNotEmpty(datas)) {
+					return this.getServerTableData(datas);	
 				}else {
 					return null;
 				}
@@ -1326,6 +1401,14 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 					}
 					horizontal.add(datasetName);
 					return datas;
+				}else if(datasetName.toLowerCase().endsWith("_g")){
+					List<String> group = paramsType.get("group");
+					if(group == null) {
+						group = new ArrayList<>();
+						paramsType.put("group", group);
+					}
+					group.add(datasetName);
+					return this.getServerTableData(datas);	
 				}else {
 					List<String> vertical = paramsType.get("vertical");
 					if(vertical == null) {
@@ -1360,6 +1443,36 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 			}
 		}
 	}
+	
+	 private ServerTableData getServerTableData(List<Map<String, Object>> datas) {
+		 ServerTableData serverTableData = new ServerTableData();
+		 serverTableData.setGroupDataList(datas);
+		 List<RowRenderData> serverDataList = new ArrayList<>();
+		 Map<Integer, List<WordTableMerge>> mergeInfos = new LinkedHashMap<>();
+		 if(ListUtil.isNotEmpty(datas)) {
+			 Map<String, Object> firstObj = datas.get(0);
+			// 获取Map的所有key
+			 List<String> keys = new ArrayList<>(firstObj.keySet());
+			 List<List<Map<String, Object>>> groupDatas = ListUtil.groupDatas(datas, keys,mergeInfos);
+			 RowRenderData serverData = null;
+			 Map<String, Object> data = null;
+			 List<String> values = null;
+			 for (int i = 0; i < groupDatas.size(); i++) {
+				for (int j = 0; j < groupDatas.get(i).size(); j++) {
+					data = groupDatas.get(i).get(j);
+					values = new ArrayList<String>();
+					for (String key : data.keySet()) {
+						values.add(String.valueOf(data.get(key)));
+					}
+					serverData = Rows.of(values.toArray(new String[0])).center().create();
+					serverDataList.add(serverData);
+				}
+			}
+		 }
+		 serverTableData.setServerDataList(serverDataList);
+		 serverTableData.setMergeInfos(mergeInfos);
+		 return serverTableData;
+	 }
 
 
 	/**  
@@ -2283,6 +2396,32 @@ public class DocTplServiceImpl extends ServiceImpl<DocTplMapper, DocTpl> impleme
 			this.iReportTplDatasetService.saveBatch(datasets);
 		}
 		result.setStatusMsg(MessageUtil.getValue("info.copy",new String[] {newName}));
+		return result;
+	}
+	
+	/**  
+	 * @Title: getDatasetParamInfo
+	 * @Description: 获取数据集的参数信息
+	 * @param usedDatasetName
+	 * @param mesGenerateReportDto
+	 * @return
+	 * @author caiyang
+	 * @date 2021-06-18 04:24:20 
+	 */ 
+	private Map<String, Object> getDatasetParamInfo(String usedDatasetName,MesGenerateReportDto mesGenerateReportDto){
+		Map<String, Object> result = null;
+		if(ListUtil.isEmpty(mesGenerateReportDto.getSearchData()))
+		{
+			return result;
+		}else {
+			for (int i = 0; i < mesGenerateReportDto.getSearchData().size(); i++) {
+				if(usedDatasetName.equals(mesGenerateReportDto.getSearchData().get(i).get("datasetName")))
+				{
+					result = mesGenerateReportDto.getSearchData().get(i);
+					break;
+				}
+			}
+		}
 		return result;
 	}
 	

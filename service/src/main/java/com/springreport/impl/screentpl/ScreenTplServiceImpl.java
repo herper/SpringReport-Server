@@ -3,12 +3,14 @@ package com.springreport.impl.screentpl;
 import com.springreport.entity.reporttpldatasource.ReportTplDatasource;
 import com.springreport.entity.screencontent.ScreenContent;
 import com.springreport.entity.screentpl.ScreenTpl;
+import com.springreport.entity.sysuser.SysUser;
 import com.springreport.mapper.screencontent.ScreenContentMapper;
 import com.springreport.mapper.screentpl.ScreenTplMapper;
 import com.springreport.api.reporttpldatasource.IReportTplDatasourceService;
 import com.springreport.api.reporttype.IReportTypeService;
 import com.springreport.api.screencontent.IScreenContentService;
 import com.springreport.api.screentpl.IScreenTplService;
+import com.springreport.api.sysuser.ISysUserService;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -22,15 +24,19 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.springreport.util.DateUtil;
+import com.springreport.util.JWTUtil;
 import com.springreport.util.ListUtil;
 import com.springreport.util.MessageUtil;
 import com.springreport.util.StringUtil;
+import com.springreport.util.UUIDUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.pagehelper.PageHelper;
 import com.springreport.base.BaseEntity;
 import com.springreport.base.PageEntity;
+import com.springreport.base.UserInfoDto;
 import com.springreport.constants.StatusCode;
+import com.springreport.dto.reporttpl.ShareDto;
 import com.springreport.dto.screentpl.MesScreenTplDto;
 import com.springreport.dto.screentpl.SaveScreenTplDto;
 import com.springreport.dto.screentpl.ScreenTplDto;
@@ -67,6 +73,9 @@ public class ScreenTplServiceImpl extends ServiceImpl<ScreenTplMapper, ScreenTpl
 	
 	@Autowired
 	private IReportTypeService iReportTypeService;
+	
+	@Autowired
+	private ISysUserService iSysUserService;
 	
 	/** 
 	* @Title: tablePagingQuery 
@@ -203,6 +212,7 @@ public class ScreenTplServiceImpl extends ServiceImpl<ScreenTplMapper, ScreenTpl
 		BaseEntity result = new BaseEntity();
 		ScreenTpl model = new ScreenTpl();
 		BeanUtils.copyProperties(mesScreenTplDto, model);
+		model.setBackground("#EDEDEF");//设置默认画板颜色
 		this.save(model);
 		//保存数据源
 		if(!ListUtil.isEmpty(mesScreenTplDto.getDataSource()))
@@ -357,12 +367,16 @@ public class ScreenTplServiceImpl extends ServiceImpl<ScreenTplMapper, ScreenTpl
 	 * @date 2021-08-02 04:38:59 
 	 */
 	@Override
-	public BaseEntity saveScreenDesign(SaveScreenTplDto saveScreenTplDto) throws JsonProcessingException {
+	public BaseEntity saveScreenDesign(SaveScreenTplDto saveScreenTplDto,UserInfoDto userInfoDto) throws JsonProcessingException {
 		BaseEntity result = new BaseEntity();
 		ScreenTpl exist = this.getById(saveScreenTplDto.getId());
 		if(exist == null)
 		{
 			throw new BizException(StatusCode.FAILURE, MessageUtil.getValue("error.notexist",new String[] {"大屏模板"}));
+		}
+		if(exist.getIsExample().intValue() == YesNoEnum.YES.getCode().intValue() && userInfoDto.getIsAdmin().intValue() != YesNoEnum.YES.getCode().intValue()) {
+			//示例模板只允许超级管理员去修改保存
+			throw new BizException(StatusCode.FAILURE, "该模板是示例模板，不允许修改，请见谅！");
 		}
 		ScreenTpl screenTpl = new ScreenTpl();
 		BeanUtils.copyProperties(saveScreenTplDto, screenTpl);
@@ -478,6 +492,7 @@ public class ScreenTplServiceImpl extends ServiceImpl<ScreenTplMapper, ScreenTpl
 		screenTpl.setTplName(newName);
 		screenTpl.setIsTemplate(YesNoEnum.NO.getCode());
 		screenTpl.setTemplateField(null);
+		screenTpl.setIsExample(YesNoEnum.NO.getCode());
 		screenTpl.setId(null);
 		this.save(screenTpl);
 		//获取所有的组件
@@ -491,6 +506,7 @@ public class ScreenTplServiceImpl extends ServiceImpl<ScreenTplMapper, ScreenTpl
 				screenContents.get(i).setId(id);
 				JSONObject content = JSONObject.parseObject(screenContents.get(i).getContent());
 				content.put("primaryKey", id);
+				content.put("id", UUIDUtil.getUUID());
 				screenContents.get(i).setContent(JSON.toJSONString(content));
 				screenContents.get(i).setTplId(screenTpl.getId());
 			}
@@ -509,6 +525,35 @@ public class ScreenTplServiceImpl extends ServiceImpl<ScreenTplMapper, ScreenTpl
 			this.iReportTplDatasourceService.saveBatch(datasources);
 		}
 		result.setStatusMsg(MessageUtil.getValue("info.copy",new String[] {newName}));
+		return result;
+	}
+
+	/**  
+	 * @MethodName: getShareUrl
+	 * @Description: 获取大屏分享链接
+	 * @author caiyang
+	 * @param shareDto
+	 * @param userInfoDto
+	 * @return
+	 * @see com.springreport.api.screentpl.IScreenTplService#getShareUrl(com.springreport.dto.reporttpl.ShareDto, com.springreport.base.UserInfoDto)
+	 * @date 2025-07-19 07:27:39 
+	 */
+	@Override
+	public ShareDto getShareUrl(ShareDto shareDto, UserInfoDto userInfoDto) {
+		ShareDto result = new ShareDto();
+		SysUser sysUser = iSysUserService.getById(userInfoDto.getUserId());
+		if(sysUser == null) {
+			throw new BizException(StatusCode.FAILURE, MessageUtil.getValue("error.notexist",new String[] {"用户信息"}));
+		}
+		String token = "";
+		if(YesNoEnum.YES.getCode().intValue() == shareDto.getIsShareForever().intValue()) {
+			token = JWTUtil.sign(userInfoDto, sysUser.getPassword(),3153600000L);
+		}else {
+			token = JWTUtil.sign(userInfoDto, sysUser.getPassword(),shareDto.getShareTime()*60L);
+		}
+		String shareUrl = MessageUtil.getValue("screen.share.url")+ "&tplId="+shareDto.getTplId()+ "&token="+token;
+		String shareMsg = MessageUtil.getValue("info.share.screen", new String[] {shareUrl,userInfoDto.getUserName(),DateUtil.getNow(),YesNoEnum.YES.getCode().intValue() == shareDto.getIsShareForever().intValue()?"永久有效":String.valueOf(shareDto.getShareTime())+"分钟"});
+		result.setShareMsg(shareMsg);
 		return result;
 	}
 }

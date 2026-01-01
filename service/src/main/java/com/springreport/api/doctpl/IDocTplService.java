@@ -103,7 +103,7 @@ public interface IDocTplService extends IService<DocTpl> {
 	 * @param model void
 	 * @date 2024-05-03 04:09:51 
 	 */ 
-	BaseEntity saveDocTplSettings(DocTplSettingsDto model);
+	BaseEntity saveDocTplSettings(DocTplSettingsDto model,UserInfoDto userInfoDto);
 	
 	/**  
 	 * @MethodName: downLoadDocTpl
@@ -153,7 +153,7 @@ public interface IDocTplService extends IService<DocTpl> {
 	 * @date 2025-03-04 11:38:43 
 	 */ 
 	Object getDatasetDatas(MesGenerateReportDto mesGenerateReportDto,ReportDatasetDto reportTplDataset,List<Map<String, String>> reportSqls,
-			Map<String, List<String>> paramsType,UserInfoDto userInfoDto,Map<String, String> apiCache,Map<String, Object> subParams) throws Exception;
+			Map<String, List<String>> paramsType,UserInfoDto userInfoDto,Map<String, String> apiCache,Map<String, Object> subParams,DocTpl docTpl) throws Exception;
 	
 	/**  
 	 * @MethodName: copyReport

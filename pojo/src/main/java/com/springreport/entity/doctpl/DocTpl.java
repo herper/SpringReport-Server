@@ -86,4 +86,12 @@ public class DocTpl extends PageEntity {
     /** template_field - 模板所属行业 */
     @TableField("template_field")
     private Long templateField;
+    
+    /** is_example - 是否演示示例 1是 2否 */
+    @TableField("is_example")
+    private Integer isExample;
+    
+    /** search_form_type - 预览页面查询组件类型 1页面顶部显示 2侧边框形式 */
+    @TableField("search_form_type")
+    private Integer searchFormType;
 }
